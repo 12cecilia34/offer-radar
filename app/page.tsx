@@ -6,6 +6,7 @@ type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
 type MatchDimension = { label: string; score: number; max: number };
+type SourceCompany = { company: string; country: Country; careersUrl: string; live: boolean; provider: string };
 
 type Job = {
   id: string;
@@ -552,6 +553,7 @@ export default function Home() {
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [resumeName, setResumeName] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
@@ -583,6 +585,7 @@ export default function Home() {
   const [discoverySourceCount, setDiscoverySourceCount] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [filteredOutCount, setFilteredOutCount] = useState(0);
+  const [sourceCompanies, setSourceCompanies] = useState<SourceCompany[]>([]);
   const recommendedRoles = useMemo(() => recommendRoles(resumeText || resumeSkills.join(" ")).slice(0, 6), [resumeText, resumeSkills]);
   const orderedRoleCatalog = useMemo(() => [...roleCatalog].sort((a, b) => {
     const aRank = recommendedRoles.indexOf(a.label);
@@ -698,7 +701,7 @@ export default function Home() {
           id: string; company: string; role: string; country: Country; city: string; track: string;
           source: string; sourceUrl: string; description: string; postedAt?: string | null; sponsorQuery?: string | null;
         }>;
-        targetCompanies: number; liveSources: number; discoverySources?: number; syncedAt?: string;
+        targetCompanies: number; liveSources: number; discoverySources?: number; syncedAt?: string; sources?: SourceCompany[];
       };
       const statesData = (await statesResponse.json()) as { states: Array<{ jobId: string; saved: boolean; status: Status }> };
       const nextStates = Object.fromEntries(statesData.states.map((state) => [state.jobId, { saved: state.saved, status: state.status }]));
@@ -725,6 +728,7 @@ export default function Home() {
       setTargetCompanyCount(jobsData.targetCompanies);
       setLiveSourceCount(jobsData.liveSources);
       setDiscoverySourceCount(jobsData.discoverySources ?? 0);
+      setSourceCompanies(jobsData.sources ?? []);
       setLastSyncedAt(jobsData.syncedAt ?? "");
     } catch {
       setRadarError("真实岗位源暂时无法同步，请稍后重新扫描。");
@@ -1369,7 +1373,7 @@ export default function Home() {
           <section className="source-strip">
             <div><span className="source-icon">⌁</span><p><strong>{targetCompanyCount} 家目标公司正在关注</strong><small>官方职位接口 · 企业招聘官网 · 校招公告 · 公众号线索</small></p></div>
             <div className="source-health"><span><i />{liveSourceCount} 实时职位接口</span><span><i className="warn" />{discoverySourceCount} 条校招渠道</span></div>
-            <button>管理信息源 →</button>
+            <button onClick={() => setShowSources(true)}>查看 {sourceCompanies.length || targetCompanyCount} 家公司 →</button>
           </section>
         </section>
       </div>
@@ -1395,6 +1399,26 @@ export default function Home() {
               <label>信息来源链接<input name="url" type="url" placeholder="https://..." /></label>
               <button className="submit-button" type="submit">加入岗位雷达</button>
             </form>
+          </section>
+        </div>
+      )}
+
+      {showSources && (
+        <div className="modal-backdrop">
+          <section className="modal source-modal" aria-modal="true" role="dialog" aria-label="监控公司清单">
+            <button className="modal-close" onClick={() => setShowSources(false)} aria-label="关闭">×</button>
+            <span className="eyebrow">SOURCE COVERAGE</span>
+            <h2>当前监控 {sourceCompanies.length} 家公司</h2>
+            <p>绿色标记为自动读取的官方职位流；其余公司持续监控招聘官网，并保留官网入口。</p>
+            <div className="source-company-grid">
+              {sourceCompanies.map((source) => (
+                <a href={source.careersUrl} target="_blank" rel="noreferrer" key={`${source.country}-${source.company}`}>
+                  <strong>{source.company}</strong>
+                  <small>{countryMeta[source.country].flag} {source.country} · {source.provider}</small>
+                  <span className={source.live ? "live" : "watch"}>{source.live ? "LIVE" : "WATCH"}</span>
+                </a>
+              ))}
+            </div>
           </section>
         </div>
       )}

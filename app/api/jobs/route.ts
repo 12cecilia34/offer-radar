@@ -18,7 +18,7 @@ type FeedJob = {
   fetchedAt: string;
 };
 
-const syncKey = "live-job-feeds-v2";
+const syncKey = "live-job-feeds-v3";
 
 const roleSignals = [
   "strategy", "operations", "operation", "growth", "product", "commercial", "business analyst",
@@ -178,6 +178,36 @@ async function fetchLever(source: JobSource, fetchedAt: string): Promise<FeedJob
   }));
 }
 
+async function fetchAshby(source: JobSource, fetchedAt: string): Promise<FeedJob[]> {
+  const response = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${source.token}`, {
+    headers: { accept: "application/json", "user-agent": "OfferRadar/1.0" },
+  });
+  if (!response.ok) throw new Error(`Ashby ${source.company}: ${response.status}`);
+  const data = (await response.json()) as { jobs?: Array<{
+    id: string; title: string; department?: string; team?: string; employmentType?: string;
+    location?: string; secondaryLocations?: Array<{ location?: string }>; publishedAt?: string;
+    isListed?: boolean; jobUrl: string; descriptionPlain?: string;
+  }> };
+  return (data.jobs ?? [])
+    .filter((job) => job.isListed !== false)
+    .filter((job) => relevantRole(job.title))
+    .filter((job) => targetLocation([job.location, ...(job.secondaryLocations ?? []).map((location) => location.location)].filter(Boolean).join(" · "), source.country))
+    .map((job) => ({
+      id: `ashby:${source.token}:${job.id}`,
+      company: source.company,
+      role: job.title,
+      country: source.country,
+      city: job.location || source.country,
+      track: inferTrack(`${job.title} ${job.department ?? ""} ${job.team ?? ""}`),
+      source: "Ashby 官方职位流",
+      sourceUrl: job.jobUrl,
+      description: job.descriptionPlain?.trim() ?? "",
+      postedAt: job.publishedAt ?? null,
+      sponsorQuery: source.sponsorQuery ?? null,
+      fetchedAt,
+    }));
+}
+
 function parseChineseDate(value?: string) {
   const match = value?.match(/(\d{4})年(\d{2})月(\d{2})日/);
   return match ? `${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z` : null;
@@ -234,6 +264,7 @@ async function refreshJobs() {
   const settled = await Promise.allSettled(liveSources.map((source) => {
     if (source.provider === "greenhouse") return fetchGreenhouse(source, fetchedAt);
     if (source.provider === "lever") return fetchLever(source, fetchedAt);
+    if (source.provider === "ashby") return fetchAshby(source, fetchedAt);
     return fetchTencent(source, fetchedAt);
   }));
   const freshJobs = [
@@ -274,6 +305,13 @@ export async function GET(request: Request) {
     targetCompanies: selectedSources.length + campaignJobs.filter((job) => countries.includes(job.country)).filter((job) => !selectedSources.some((source) => source.company === job.company)).length,
     liveSources: selectedSources.filter((source) => source.provider !== "official").length,
     discoverySources: campaignJobs.filter((job) => countries.includes(job.country)).length,
+    sources: selectedSources.map((source) => ({
+      company: source.company,
+      country: source.country,
+      careersUrl: source.careersUrl,
+      live: source.provider !== "official",
+      provider: source.provider === "official" ? "官网监控" : `${source.provider[0].toUpperCase()}${source.provider.slice(1)} 官方职位流`,
+    })),
     totalCompanies: jobSources.length,
     totalLiveSources: liveSourceCount,
   });

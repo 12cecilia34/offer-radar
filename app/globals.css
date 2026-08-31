@@ -316,6 +316,16 @@ button { color: inherit; }
 .modal label { display: grid; gap: 6px; color: #59645f; font-size: 10px; font-weight: 700; }
 .modal input, .modal select { width: 100%; border: 1px solid var(--line); border-radius: 7px; background: white; padding: 11px; outline: none; font-size: 12px; }
 .modal input:focus, .modal select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(30, 106, 76, .08); }
+.source-modal { width: min(900px, 100%); max-height: min(760px, 88vh); display: flex; flex-direction: column; }
+.source-modal > p { margin-top: 5px; }
+.source-company-grid { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding: 2px; }
+.source-company-grid a { position: relative; min-width: 0; display: grid; gap: 5px; padding: 12px 55px 12px 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); text-decoration: none; }
+.source-company-grid a:hover { border-color: #9eb7a4; background: #f4f8f1; }
+.source-company-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.source-company-grid small { color: var(--muted); font-size: 8px; }
+.source-company-grid span { position: absolute; right: 9px; top: 11px; padding: 3px 5px; border-radius: 4px; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.source-company-grid span.live { color: #1f6846; background: #dff1e5; }
+.source-company-grid span.watch { color: #8a6528; background: #f4ead7; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .submit-button { margin-top: 6px; border: 0; border-radius: 8px; padding: 12px; background: var(--green); color: white; font-weight: 800; cursor: pointer; }
 
@@ -356,6 +366,7 @@ button { color: inherit; }
   .source-strip { align-items: flex-start; gap: 15px; flex-wrap: wrap; }
   .source-health { order: 3; width: 100%; }
   .form-row { grid-template-columns: 1fr; }
+  .source-company-grid { grid-template-columns: 1fr; }
   .ats-heading { padding: 23px 19px 19px; flex-direction: column; }
   .privacy-badge { align-self: flex-start; }
   .ats-input-grid { grid-template-columns: 1fr; }
