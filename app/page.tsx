@@ -607,6 +607,7 @@ export default function Home() {
 
     async function restoreProfile() {
       try {
+        if (window.localStorage.getItem("offer-radar-profile-disabled") === "1") return;
         const response = await fetch(`/api/profile?clientId=${encodeURIComponent(id!)}`);
         const data = (await response.json()) as { profile?: SearchProfile | null };
         if (!data.profile) return;
@@ -700,6 +701,7 @@ export default function Home() {
       });
   }, [activeView, country, jobs, query, saved, sort]);
   const knownDeadlineCount = useMemo(() => jobs.filter((job) => job.daysLeft < 9999).length, [jobs]);
+  const hasActiveRadar = profileReady && Boolean(resumeText || resumeSkills.length);
 
   async function loadRadar(countries: Country[]) {
     setRadarLoading(true);
@@ -765,6 +767,11 @@ export default function Home() {
   }
 
   function openDashboardView(view: DashboardView) {
+    if (!hasActiveRadar) {
+      setActiveView("radar");
+      openProfileBuilder();
+      return;
+    }
     setActiveView(view);
     setShowSources(false);
     window.setTimeout(() => {
@@ -867,6 +874,11 @@ export default function Home() {
         }),
       });
       if (!response.ok) throw new Error("profile unavailable");
+      try {
+        window.localStorage.removeItem("offer-radar-profile-disabled");
+      } catch {
+        // The active session can still use the newly generated radar.
+      }
       setProfileReady(true);
       setEditingProfile(false);
       setScanMessage("个人岗位雷达已生成，后续会按 24 小时数据窗口自动刷新。");
@@ -987,14 +999,32 @@ export default function Home() {
   function clearResume() {
     try {
       window.localStorage.removeItem(resumeStorageKey(resumeLanguage));
+      window.localStorage.setItem("offer-radar-profile-disabled", "1");
     } catch {
       // Clearing the in-memory copy is still useful when browser storage is unavailable.
     }
     setResumeName("");
     setResumeText("");
     setResumeSkills([]);
+    setProfileReady(false);
+    setEditingProfile(true);
+    setJobs([]);
+    setSaved([]);
+    setCountry("全部");
+    setQuery("");
+    setJobDescription("");
     setAtsResult(null);
     setAtsError("");
+    setRadarError("");
+    setRadarLoading(false);
+    setFilteredOutCount(0);
+    setTargetCompanyCount(0);
+    setLiveSourceCount(0);
+    setDiscoverySourceCount(0);
+    setSourceCompanies([]);
+    setLastSyncedAt("");
+    setActiveView("radar");
+    setScanMessage("简历和本次匹配结果已清除。重新上传简历后即可生成新的岗位雷达。");
   }
 
   function runAtsCheck() {
@@ -1198,6 +1228,8 @@ export default function Home() {
             )}
           </section>
 
+          {hasActiveRadar && (
+          <>
           <section className="stats" aria-label="岗位概览">
             <div className="stat-card">
               <span>匹配岗位</span><strong>{jobs.length}</strong><small>当前追踪</small>
@@ -1452,6 +1484,8 @@ export default function Home() {
             <div className="source-health"><span><i />{liveSourceCount} 实时职位接口</span><span><i className="warn" />{discoverySourceCount} 条校招渠道</span></div>
             <button onClick={() => setShowSources(true)}>查看 {sourceCompanies.length || targetCompanyCount} 家公司 →</button>
           </section>
+          </>
+          )}
         </section>
       </div>
 
