@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
   const title = "Offer Radar｜跨国秋招信息雷达";
   const description =
-    "用 AI 汇总中国、英国和加拿大的校招岗位，计算匹配度并追踪申请截止时间。";
+    "用 AI 汇总中国、英国和加拿大的校招岗位，追踪截止时间，并通过 ATS 检查简历与岗位的匹配情况。";
 
   return {
     title,
