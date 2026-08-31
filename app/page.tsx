@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
 
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
@@ -641,6 +641,18 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const syncViewFromHash = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "saved" || hash === "applications" || hash === "radar") {
+        setActiveView(hash);
+      }
+    };
+    syncViewFromHash();
+    window.addEventListener("hashchange", syncViewFromHash);
+    return () => window.removeEventListener("hashchange", syncViewFromHash);
+  }, []);
+
+  useEffect(() => {
     if (!clientId || !profileReady || editingProfile) return;
     void loadRadar(selectedCountries);
     // Refresh when the saved search profile changes so restored resume signals and career stage are applied.
@@ -754,7 +766,22 @@ export default function Home() {
 
   function openDashboardView(view: DashboardView) {
     setActiveView(view);
-    window.setTimeout(() => document.getElementById("radar-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    setShowSources(false);
+    window.setTimeout(() => {
+      const panel = document.getElementById("radar-panel");
+      panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+      panel?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+    }, 0);
+  }
+
+  function openProfileBuilder() {
+    setEditingProfile(true);
+    setShowSources(false);
+    window.setTimeout(() => document.getElementById("profile-builder")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  function openSources() {
+    setShowSources(true);
   }
 
   function changeStatus(id: string, status: Status) {
@@ -843,6 +870,9 @@ export default function Home() {
       setProfileReady(true);
       setEditingProfile(false);
       setScanMessage("个人岗位雷达已生成，后续会按 24 小时数据窗口自动刷新。");
+      setActiveView("radar");
+      window.history.replaceState(null, "", "#radar");
+      window.setTimeout(() => document.getElementById("radar-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch {
       setAtsError("求职画像暂时无法保存，请稍后再试。");
     } finally {
@@ -874,9 +904,7 @@ export default function Home() {
     setShowAdd(false);
   }
 
-  async function readResume(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  async function acceptResume(file: File) {
     setAtsError("");
     setAtsResult(null);
     if (file.size > 10 * 1024 * 1024) {
@@ -937,6 +965,38 @@ export default function Home() {
     }
   }
 
+  async function readResume(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await acceptResume(file);
+    event.target.value = "";
+  }
+
+  function dropResume(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (file) void acceptResume(file);
+  }
+
+  function openResumePicker(event: KeyboardEvent<HTMLLabelElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.currentTarget.querySelector<HTMLInputElement>('input[type="file"]')?.click();
+  }
+
+  function clearResume() {
+    try {
+      window.localStorage.removeItem(resumeStorageKey(resumeLanguage));
+    } catch {
+      // Clearing the in-memory copy is still useful when browser storage is unavailable.
+    }
+    setResumeName("");
+    setResumeText("");
+    setResumeSkills([]);
+    setAtsResult(null);
+    setAtsError("");
+  }
+
   function runAtsCheck() {
     setAtsError("");
     if (!resumeText) {
@@ -991,26 +1051,34 @@ export default function Home() {
           <span className="beta">BETA</span>
         </a>
         <div className="top-actions">
+          <span className="public-badge"><i /> 公开访问</span>
           <span className="last-sync"><i /> {lastSyncedAt ? `上次同步：${new Date(lastSyncedAt).toLocaleDateString("zh-CN")}` : "正在连接职位源"}</span>
-          <button className="icon-button" aria-label="通知">◔</button>
-          <span className="avatar">M</span>
         </div>
       </header>
+
+      <nav className="mobile-nav" aria-label="移动端主导航">
+        <a href="#radar" className={activeView === "radar" && !showSources ? "active" : ""} onClick={() => openDashboardView("radar")}><span>⌁</span>岗位</a>
+        <a href="#saved" className={activeView === "saved" && !showSources ? "active" : ""} onClick={() => openDashboardView("saved")}><span>♡</span>收藏</a>
+        <a href="#applications" className={activeView === "applications" && !showSources ? "active" : ""} onClick={() => openDashboardView("applications")}><span>▤</span>申请</a>
+        <a href="#profile-builder" onClick={openProfileBuilder}><span>⇧</span>简历</a>
+        <button className={showSources ? "active" : ""} onClick={openSources}><span>◎</span>信息源</button>
+      </nav>
 
       <div className="layout" id="top">
         <aside className="sidebar" aria-label="主导航">
           <nav>
-            <button className={`nav-item ${activeView === "radar" ? "active" : ""}`} onClick={() => openDashboardView("radar")}><span>⌁</span>岗位雷达</button>
-            <button className={`nav-item ${activeView === "saved" ? "active" : ""}`} onClick={() => openDashboardView("saved")}>
+            <a href="#radar" className={`nav-item ${activeView === "radar" && !showSources ? "active" : ""}`} aria-current={activeView === "radar" && !showSources ? "page" : undefined} onClick={() => openDashboardView("radar")}><span>⌁</span>岗位雷达</a>
+            <a href="#saved" className={`nav-item ${activeView === "saved" && !showSources ? "active" : ""}`} aria-current={activeView === "saved" && !showSources ? "page" : undefined} onClick={() => openDashboardView("saved")}>
               <span>♡</span>我的收藏 <b>{saved.length}</b>
-            </button>
-            <button className={`nav-item ${activeView === "applications" ? "active" : ""}`} onClick={() => openDashboardView("applications")}><span>▤</span>申请看板 <b>{applicationCount}</b></button>
+            </a>
+            <a href="#applications" className={`nav-item ${activeView === "applications" && !showSources ? "active" : ""}`} aria-current={activeView === "applications" && !showSources ? "page" : undefined} onClick={() => openDashboardView("applications")}><span>▤</span>申请看板 <b>{applicationCount}</b></a>
             {atsWorkspaceEnabled && (
               <button className="nav-item" onClick={() => document.getElementById("ats-workspace")?.scrollIntoView({ behavior: "smooth" })}>
                 <span>◉</span>ATS 简历匹配
               </button>
             )}
-            <button className={`nav-item ${showSources ? "active" : ""}`} onClick={() => setShowSources(true)}><span>◎</span>信息源</button>
+            <button className={`nav-item ${showSources ? "active" : ""}`} onClick={openSources}><span>◎</span>信息源</button>
+            <a href="#profile-builder" className="nav-upload" onClick={openProfileBuilder}><span>⇧</span><strong>上传简历找工作</strong><small>无需登录 · 每个人都能使用</small></a>
           </nav>
 
           <div className="profile-card">
@@ -1019,7 +1087,7 @@ export default function Home() {
             <p>{selectedCountries.join(" · ")} · {selectedRoles.slice(0, 2).join(" / ")}</p>
             <div className="profile-tags">{resumeSkills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
             {profileReady && <small className={`full-match-status ${resumeText ? "ready" : "limited"}`}>{resumeText ? "✓ 完整简历匹配已启用" : "! 当前仅使用技能标签"}</small>}
-            <button onClick={() => { setEditingProfile(true); document.getElementById("profile-builder")?.scrollIntoView({ behavior: "smooth" }); }}>编辑求职偏好 →</button>
+            <button onClick={openProfileBuilder}>{profileReady ? "编辑求职偏好 →" : "开始创建我的雷达 →"}</button>
           </div>
         </aside>
 
@@ -1027,8 +1095,9 @@ export default function Home() {
           <section className="hero">
             <div>
               <span className="kicker">YOUR GLOBAL GRADUATE JOB COPILOT</span>
-              <h1>从你的简历出发，<em>搜索真正适合的岗位。</em></h1>
-              <p>上传简历并告诉我们国家、岗位与签证需求。Offer Radar 会搜索官方职位接口、公司招聘官网、校招公告与可核验的公众号线索，去重后按个人匹配度排序。</p>
+              <h1>每一份简历，都值得<em>找到真正适合的岗位。</em></h1>
+              <p>这是一个公开的求职网页。任何人都可以直接上传自己的 PDF、DOCX 或 TXT 简历，再选择国家、岗位与签证需求；Offer Radar 会从真实招聘来源中筛选并按个人匹配度排序。</p>
+              <div className="hero-trust"><span>✓ 无需登录</span><span>✓ 简历仅在你的浏览器解析</span><span>✓ 每位访客拥有独立求职雷达</span></div>
             </div>
             <button className={`scan-button ${scanning ? "is-scanning" : ""}`} onClick={startScan}>
               <span className="scan-symbol">✦</span>
@@ -1043,8 +1112,8 @@ export default function Home() {
             <div className="profile-builder-head">
               <div>
                 <span className="kicker">PERSONALISED SEARCH PROFILE</span>
-                <h2>{profileReady && !editingProfile ? "你的岗位雷达正在运行" : "先让雷达认识你，再开始搜索。"}</h2>
-                <p>{profileReady && !editingProfile ? `${resumeText ? "完整简历匹配已启用：" : "当前只有技能标签："}正在关注 ${selectedCountries.join("、")}的 ${selectedRoles.length} 个求职方向。${resumeText ? "教育、经历、成果、技能、语言与地点都会进入评分。" : "请重新上传简历以恢复完整匹配。"}` : "简历文件和解析文本只保存在当前浏览器；数据库仅保存技能标签和求职偏好，不保存原文件。"}</p>
+                <h2>{profileReady && !editingProfile ? "你的岗位雷达正在运行" : "上传你的简历，开始找工作。"}</h2>
+                <p>{profileReady && !editingProfile ? `${resumeText ? "完整简历匹配已启用：" : "当前只有技能标签："}正在关注 ${selectedCountries.join("、")}的 ${selectedRoles.length} 个求职方向。${resumeText ? "教育、经历、成果、技能、语言与地点都会进入评分。" : "请重新上传简历以恢复完整匹配。"}` : "无需注册账号。简历文件和解析文本只保存在当前浏览器；服务器仅保存匿名技能标签和求职偏好，不保存原文件。"}</p>
               </div>
               {profileReady && !editingProfile && <button className="secondary-button" onClick={() => setEditingProfile(true)}>编辑画像</button>}
             </div>
@@ -1054,17 +1123,18 @@ export default function Home() {
                 <div className="profile-step resume-profile-step">
                   <span className="profile-step-number">01</span>
                   <strong>上传简历</strong>
-                  <p>先选择简历语言，再上传对应版本</p>
+                  <p>支持拖拽或点击上传；文件不会离开你的设备</p>
                   <div className="resume-language-tabs" role="tablist" aria-label="简历语言版本">
                     <button type="button" className={resumeLanguage === "中文" ? "selected" : ""} aria-pressed={resumeLanguage === "中文"} onClick={() => changeResumeLanguage("中文")}>中文版</button>
                     <button type="button" className={resumeLanguage === "英文" ? "selected" : ""} aria-pressed={resumeLanguage === "英文"} onClick={() => changeResumeLanguage("英文")}>English CV</button>
                   </div>
-                  <label className={`profile-upload ${resumeText ? "ready" : ""}`}>
+                  <label className={`profile-upload ${resumeText ? "ready" : ""}`} tabIndex={0} onKeyDown={openResumePicker} onDragOver={(event) => event.preventDefault()} onDrop={dropResume}>
                     <input key={resumeLanguage} type="file" accept=".pdf,.docx,.txt" onChange={readResume} />
-                    <span>{parsingResume ? "正在解析…" : resumeText ? `✓ 已识别${resumeLanguage}简历` : `⇧ 选择${resumeLanguage}简历`}</span>
-                    <small>{resumeName || "PDF、DOCX、TXT · 最大 10MB"}</small>
+                    <span>{parsingResume ? "正在本地解析…" : resumeText ? `✓ 已识别${resumeLanguage}简历` : `⇧ 拖拽或选择${resumeLanguage}简历`}</span>
+                    <small>{resumeName || "PDF、DOCX、TXT · 最大 10MB · 不上传原文件"}</small>
                   </label>
                   {resumeSkills.length > 0 && <div className="detected-skills">{resumeSkills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}</div>}
+                  {resumeText && <button type="button" className="clear-resume" onClick={clearResume}>清除这台设备上的简历</button>}
                 </div>
 
                 <div className="profile-step">
@@ -1121,7 +1191,7 @@ export default function Home() {
               <>
                 {atsError && <div className="profile-error">{atsError}</div>}
                 <div className="profile-builder-footer">
-              <span>隐私说明：完整简历文本仅保存在当前浏览器；服务器只保存技能标签与求职偏好。</span>
+                  <span>隐私说明：原始简历与完整文本不上传；服务器只保存匿名技能标签与求职偏好。</span>
                   <button onClick={saveSearchProfile} disabled={savingProfile || parsingResume}>{savingProfile ? "正在生成…" : "✦ 生成我的岗位雷达"}</button>
                 </div>
               </>
@@ -1246,7 +1316,7 @@ export default function Home() {
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">{activeView === "saved" ? "SAVED OPPORTUNITIES" : activeView === "applications" ? "APPLICATION TRACKER" : "LIVE OPPORTUNITY FEED"}</span>
-                <h2>{activeView === "saved" ? "我的收藏" : activeView === "applications" ? "申请看板" : "为你找到的岗位"}</h2>
+                <h2 tabIndex={-1}>{activeView === "saved" ? "我的收藏" : activeView === "applications" ? "申请看板" : "为你找到的岗位"}</h2>
               </div>
               <button className="secondary-button" onClick={() => setShowAdd(true)}>＋ 手动添加</button>
             </div>

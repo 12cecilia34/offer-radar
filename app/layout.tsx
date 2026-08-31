@@ -12,9 +12,9 @@ export async function generateMetadata(): Promise<Metadata> {
     requestHeaders.get("x-forwarded-proto") ??
     (host.includes("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
-  const title = "Offer Radar｜跨国秋招信息雷达";
+  const title = "Offer Radar｜上传简历，找到真正适合的岗位";
   const description =
-    "用 AI 汇总中国、英国和加拿大的校招岗位，核验英国 Skilled Worker Sponsor，并通过 ATS 检查简历匹配情况。";
+    "公开、无需登录的求职网页。上传 PDF、DOCX 或 TXT 简历，在本地完成解析，并从中国、英国和加拿大的真实招聘来源中筛选匹配岗位。";
 
   return {
     title,
@@ -23,13 +23,13 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       type: "website",
-      images: [{ url: `${origin}/og.png`, width: 1731, height: 909 }],
+      images: [{ url: `${origin}/og-public.png`, width: 1731, height: 909 }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [`${origin}/og.png`],
+      images: [`${origin}/og-public.png`],
     },
   };
 }
