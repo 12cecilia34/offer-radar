@@ -19,6 +19,7 @@ type Job = {
   sourceUrl: string;
   reason: string;
   requirements: string;
+  sponsorQuery?: string;
   status: Status;
   fresh?: boolean;
 };
@@ -88,6 +89,7 @@ const seededJobs: Job[] = [
     sourceUrl: "https://www.revolut.com/careers/",
     reason: "国际化运营、数据分析与 FinTech 兴趣均可承接",
     requirements: "We are looking for analytical graduates with experience in strategy, operations, process improvement and stakeholder management. Strong SQL, Excel, problem solving and project management skills are preferred in a fast-paced FinTech environment.",
+    sponsorQuery: "Revolut Ltd",
     status: "待申请",
   },
   {
@@ -104,6 +106,7 @@ const seededJobs: Job[] = [
     sourceUrl: "https://www.wise.jobs/",
     reason: "产品运营主线清晰，语言与跨市场经历是加分项",
     requirements: "Support product operations across international markets. Use customer insights, data analysis, experimentation and cross-functional collaboration to improve operational processes and product adoption.",
+    sponsorQuery: "Wise Payments Limited",
     status: "已申请",
   },
   {
@@ -120,6 +123,7 @@ const seededJobs: Job[] = [
     sourceUrl: "https://www.deloitte.com/uk/en/careers.html",
     reason: "商业分析背景匹配，需要突出结构化解决问题能力",
     requirements: "Analyse complex business problems, conduct market research and communicate recommendations to clients. Candidates should demonstrate structured problem solving, stakeholder management, teamwork, data analysis and commercial awareness.",
+    sponsorQuery: "Deloitte LLP",
     status: "待申请",
   },
   {
@@ -175,6 +179,28 @@ type AtsResult = {
   missing: string[];
   checks: { label: string; passed: boolean }[];
   suggestions: string[];
+};
+
+type SponsorMatch = {
+  organisation: string;
+  city: string;
+  rating: string;
+  route: string;
+};
+
+type SponsorCheck = {
+  query: string;
+  found: boolean;
+  skilledWorker: boolean;
+  matches: SponsorMatch[];
+};
+
+type SponsorApiResponse = {
+  sourcePage: string;
+  registerDate: string;
+  checkedAt: string;
+  results: SponsorCheck[];
+  error?: string;
 };
 
 const atsVocabulary = [
@@ -266,6 +292,13 @@ export default function Home() {
   const [parsingResume, setParsingResume] = useState(false);
   const [atsError, setAtsError] = useState("");
   const [atsResult, setAtsResult] = useState<AtsResult | null>(null);
+  const [sponsorChecks, setSponsorChecks] = useState<Record<string, SponsorCheck>>({});
+  const [sponsorRegisterDate, setSponsorRegisterDate] = useState("");
+  const [sponsorLoading, setSponsorLoading] = useState(true);
+  const [sponsorSearch, setSponsorSearch] = useState("");
+  const [sponsorSearchResult, setSponsorSearchResult] = useState<SponsorCheck | null>(null);
+  const [sponsorSearchError, setSponsorSearchError] = useState("");
+  const [sponsorSearching, setSponsorSearching] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -281,6 +314,23 @@ export default function Home() {
       window.localStorage.setItem("offer-radar-saved", JSON.stringify(saved));
     }
   }, [saved, savedReady]);
+
+  useEffect(() => {
+    const companies = seededJobs
+      .map((job) => job.sponsorQuery)
+      .filter((query): query is string => Boolean(query));
+    fetch(`/api/sponsors?companies=${encodeURIComponent(companies.join("|"))}`)
+      .then((response) => response.json() as Promise<SponsorApiResponse>)
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setSponsorChecks(
+          Object.fromEntries(data.results.map((result) => [result.query, result])),
+        );
+        setSponsorRegisterDate(data.registerDate);
+      })
+      .catch(() => setSponsorSearchError("官方名单暂时无法连接，请稍后重试。"))
+      .finally(() => setSponsorLoading(false));
+  }, []);
 
   const filteredJobs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -414,6 +464,28 @@ export default function Home() {
     }, 0);
   }
 
+  async function searchSponsor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = sponsorSearch.trim();
+    if (query.length < 2) return;
+    setSponsorSearching(true);
+    setSponsorSearchError("");
+    setSponsorSearchResult(null);
+    try {
+      const response = await fetch(
+        `/api/sponsors?companies=${encodeURIComponent(query)}`,
+      );
+      const data = (await response.json()) as SponsorApiResponse;
+      if (!response.ok || data.error) throw new Error(data.error);
+      setSponsorSearchResult(data.results[0]);
+      setSponsorRegisterDate(data.registerDate);
+    } catch {
+      setSponsorSearchError("没有成功连接官方 Sponsor Register，请稍后重试。");
+    } finally {
+      setSponsorSearching(false);
+    }
+  }
+
   const appliedCount = jobs.filter((job) => job.status === "已申请").length;
   const urgentCount = jobs.filter((job) => job.daysLeft <= 7).length;
 
@@ -442,6 +514,9 @@ export default function Home() {
             <button className="nav-item"><span>▤</span>申请看板 <b>{appliedCount}</b></button>
             <button className="nav-item" onClick={() => document.getElementById("ats-workspace")?.scrollIntoView({ behavior: "smooth" })}>
               <span>◉</span>ATS 简历匹配
+            </button>
+            <button className="nav-item" onClick={() => document.getElementById("sponsor-checker")?.scrollIntoView({ behavior: "smooth" })}>
+              <span>✦</span>英国 Sponsor 核验
             </button>
             <button className="nav-item"><span>◎</span>信息源</button>
           </nav>
@@ -583,6 +658,43 @@ export default function Home() {
             )}
           </section>
 
+          <section className="sponsor-panel" id="sponsor-checker">
+            <div className="sponsor-copy">
+              <span className="eyebrow">UK SKILLED WORKER CHECK</span>
+              <h2>先确认雇主有牌照，<br />再判断岗位是否担保。</h2>
+              <p>连接英国政府 Licensed Sponsors 官方名单，按雇主法定名称核验 Skilled Worker 许可。</p>
+              <a href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" target="_blank" rel="noreferrer">查看 GOV.UK 官方名单 ↗</a>
+            </div>
+            <div className="sponsor-tool">
+              <div className="register-status">
+                <span><i />官方数据源已连接</span>
+                <small>{sponsorRegisterDate ? `名单版本 ${sponsorRegisterDate}` : "正在读取最新名单…"}</small>
+              </div>
+              <form onSubmit={searchSponsor}>
+                <label htmlFor="sponsor-company">输入雇主法定英文名称</label>
+                <div>
+                  <input id="sponsor-company" value={sponsorSearch} onChange={(event) => setSponsorSearch(event.target.value)} placeholder="例如：Wise Payments Limited" />
+                  <button disabled={sponsorSearching}>{sponsorSearching ? "核验中…" : "核验 Sponsor"}</button>
+                </div>
+              </form>
+
+              {sponsorSearchError && <div className="sponsor-error">{sponsorSearchError}</div>}
+              {sponsorSearchResult && (
+                <div className={`sponsor-result ${sponsorSearchResult.skilledWorker ? "licensed" : "unverified"}`}>
+                  <span className="result-icon">{sponsorSearchResult.skilledWorker ? "✓" : "?"}</span>
+                  <div>
+                    <strong>{sponsorSearchResult.skilledWorker ? "存在 Skilled Worker 许可" : sponsorSearchResult.found ? "名单中存在，但未找到 Skilled Worker 路线" : "官方名单未找到精确匹配"}</strong>
+                    <p>{sponsorSearchResult.matches[0]?.organisation ?? sponsorSearchResult.query}</p>
+                    {sponsorSearchResult.matches.filter((match) => match.route.includes("Skilled Worker")).slice(0, 2).map((match) => (
+                      <small key={`${match.organisation}-${match.route}`}>{match.city || "UK"} · {match.rating} · {match.route}</small>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="sponsor-warning"><b>重要：</b>持有 Sponsor Licence 不代表这个具体岗位一定提供签证担保，仍需查看 JD 或向招聘方确认。</div>
+            </div>
+          </section>
+
           <section className="radar-panel">
             <div className="panel-heading">
               <div>
@@ -633,6 +745,18 @@ export default function Home() {
                     <div className="job-tags">
                       <span>{job.track}</span><span>{job.status}</span><span>{job.source}</span>
                     </div>
+                    {job.sponsorQuery && (
+                      <div className="job-sponsor-row">
+                        {sponsorLoading ? (
+                          <span className="sponsor-badge checking">◌ Sponsor 核验中</span>
+                        ) : sponsorChecks[job.sponsorQuery]?.skilledWorker ? (
+                          <span className="sponsor-badge licensed">✓ Skilled Worker licensed</span>
+                        ) : (
+                          <span className="sponsor-badge unverified">? Sponsor 待人工确认</span>
+                        )}
+                        <small>牌照状态 ≠ 该岗位承诺担保</small>
+                      </div>
+                    )}
                     <p className="match-reason"><b>AI 匹配理由</b>{job.reason}</p>
                   </div>
                   <div className="job-meta">
