@@ -316,6 +316,7 @@ export default function Home() {
   }, [saved, savedReady]);
 
   useEffect(() => {
+    if (country !== "英国" || Object.keys(sponsorChecks).length > 0) return;
     const companies = seededJobs
       .map((job) => job.sponsorQuery)
       .filter((query): query is string => Boolean(query));
@@ -330,7 +331,7 @@ export default function Home() {
       })
       .catch(() => setSponsorSearchError("官方名单暂时无法连接，请稍后重试。"))
       .finally(() => setSponsorLoading(false));
-  }, []);
+  }, [country, sponsorChecks]);
 
   const filteredJobs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -515,9 +516,6 @@ export default function Home() {
             <button className="nav-item" onClick={() => document.getElementById("ats-workspace")?.scrollIntoView({ behavior: "smooth" })}>
               <span>◉</span>ATS 简历匹配
             </button>
-            <button className="nav-item" onClick={() => document.getElementById("sponsor-checker")?.scrollIntoView({ behavior: "smooth" })}>
-              <span>✦</span>英国 Sponsor 核验
-            </button>
             <button className="nav-item"><span>◎</span>信息源</button>
           </nav>
 
@@ -658,43 +656,6 @@ export default function Home() {
             )}
           </section>
 
-          <section className="sponsor-panel" id="sponsor-checker">
-            <div className="sponsor-copy">
-              <span className="eyebrow">UK SKILLED WORKER CHECK</span>
-              <h2>先确认雇主有牌照，<br />再判断岗位是否担保。</h2>
-              <p>连接英国政府 Licensed Sponsors 官方名单，按雇主法定名称核验 Skilled Worker 许可。</p>
-              <a href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" target="_blank" rel="noreferrer">查看 GOV.UK 官方名单 ↗</a>
-            </div>
-            <div className="sponsor-tool">
-              <div className="register-status">
-                <span><i />官方数据源已连接</span>
-                <small>{sponsorRegisterDate ? `名单版本 ${sponsorRegisterDate}` : "正在读取最新名单…"}</small>
-              </div>
-              <form onSubmit={searchSponsor}>
-                <label htmlFor="sponsor-company">输入雇主法定英文名称</label>
-                <div>
-                  <input id="sponsor-company" value={sponsorSearch} onChange={(event) => setSponsorSearch(event.target.value)} placeholder="例如：Wise Payments Limited" />
-                  <button disabled={sponsorSearching}>{sponsorSearching ? "核验中…" : "核验 Sponsor"}</button>
-                </div>
-              </form>
-
-              {sponsorSearchError && <div className="sponsor-error">{sponsorSearchError}</div>}
-              {sponsorSearchResult && (
-                <div className={`sponsor-result ${sponsorSearchResult.skilledWorker ? "licensed" : "unverified"}`}>
-                  <span className="result-icon">{sponsorSearchResult.skilledWorker ? "✓" : "?"}</span>
-                  <div>
-                    <strong>{sponsorSearchResult.skilledWorker ? "存在 Skilled Worker 许可" : sponsorSearchResult.found ? "名单中存在，但未找到 Skilled Worker 路线" : "官方名单未找到精确匹配"}</strong>
-                    <p>{sponsorSearchResult.matches[0]?.organisation ?? sponsorSearchResult.query}</p>
-                    {sponsorSearchResult.matches.filter((match) => match.route.includes("Skilled Worker")).slice(0, 2).map((match) => (
-                      <small key={`${match.organisation}-${match.route}`}>{match.city || "UK"} · {match.rating} · {match.route}</small>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="sponsor-warning"><b>重要：</b>持有 Sponsor Licence 不代表这个具体岗位一定提供签证担保，仍需查看 JD 或向招聘方确认。</div>
-            </div>
-          </section>
-
           <section className="radar-panel">
             <div className="panel-heading">
               <div>
@@ -731,6 +692,46 @@ export default function Home() {
             <div className="demo-note">
               <span>DEMO</span> 当前为产品演示数据；正式版接入招聘官网与搜索服务后，将显示实时岗位和经核验的截止日期。
             </div>
+
+            {country === "英国" && (
+              <section className="sponsor-inline" id="sponsor-checker">
+                <div className="sponsor-inline-head">
+                  <div>
+                    <span className="eyebrow">UK SKILLED WORKER CHECK</span>
+                    <h3>英国雇主 Sponsor 核验</h3>
+                    <p>按雇主法定名称查询 GOV.UK Licensed Sponsors 名单。</p>
+                  </div>
+                  <a href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" target="_blank" rel="noreferrer">官方名单 ↗</a>
+                </div>
+                <div className="sponsor-inline-body">
+                  <div className="register-status">
+                    <span><i />官方数据源已连接</span>
+                    <small>{sponsorRegisterDate ? `名单版本 ${sponsorRegisterDate}` : "正在读取最新名单…"}</small>
+                  </div>
+                  <form onSubmit={searchSponsor}>
+                    <label htmlFor="sponsor-company">输入雇主法定英文名称</label>
+                    <div>
+                      <input id="sponsor-company" value={sponsorSearch} onChange={(event) => setSponsorSearch(event.target.value)} placeholder="例如：Wise Payments Limited" />
+                      <button disabled={sponsorSearching}>{sponsorSearching ? "核验中…" : "核验 Sponsor"}</button>
+                    </div>
+                  </form>
+                  {sponsorSearchError && <div className="sponsor-error">{sponsorSearchError}</div>}
+                  {sponsorSearchResult && (
+                    <div className={`sponsor-result ${sponsorSearchResult.skilledWorker ? "licensed" : "unverified"}`}>
+                      <span className="result-icon">{sponsorSearchResult.skilledWorker ? "✓" : "?"}</span>
+                      <div>
+                        <strong>{sponsorSearchResult.skilledWorker ? "存在 Skilled Worker 许可" : sponsorSearchResult.found ? "名单中存在，但未找到 Skilled Worker 路线" : "官方名单未找到精确匹配"}</strong>
+                        <p>{sponsorSearchResult.matches[0]?.organisation ?? sponsorSearchResult.query}</p>
+                        {sponsorSearchResult.matches.filter((match) => match.route.includes("Skilled Worker")).slice(0, 2).map((match) => (
+                          <small key={`${match.organisation}-${match.route}`}>{match.city || "UK"} · {match.rating} · {match.route}</small>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="sponsor-warning"><b>提醒：</b>持有牌照不代表具体岗位一定提供担保，仍需查看 JD 或向招聘方确认。</div>
+                </div>
+              </section>
+            )}
 
             <div className="job-list">
               {filteredJobs.map((job) => (
