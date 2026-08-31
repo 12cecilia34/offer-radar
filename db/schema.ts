@@ -7,6 +7,7 @@ export const profiles = sqliteTable("profiles", {
   locations: text("locations").notNull().default(""),
   needsSponsor: integer("needs_sponsor", { mode: "boolean" }).notNull().default(false),
   resumeSkills: text("resume_skills").notNull().default("[]"),
+  resumeLanguage: text("resume_language").notNull().default("英文"),
   updatedAt: text("updated_at").notNull(),
 });
 

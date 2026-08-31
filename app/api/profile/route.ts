@@ -9,6 +9,7 @@ type ProfilePayload = {
   locations?: string;
   needsSponsor?: boolean;
   resumeSkills?: string[];
+  resumeLanguage?: "中文" | "英文";
 };
 
 export async function GET(request: Request) {
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
       countries: JSON.parse(row.countries),
       roles: JSON.parse(row.roles),
       resumeSkills: JSON.parse(row.resumeSkills),
+      resumeLanguage: row.resumeLanguage,
     },
   });
 }
@@ -45,6 +47,7 @@ export async function POST(request: Request) {
     locations: (payload.locations ?? "").slice(0, 240),
     needsSponsor: Boolean(payload.needsSponsor),
     resumeSkills: JSON.stringify((payload.resumeSkills ?? []).slice(0, 30)),
+    resumeLanguage: payload.resumeLanguage === "中文" ? "中文" : "英文",
     updatedAt: new Date().toISOString(),
   };
 
@@ -55,4 +58,3 @@ export async function POST(request: Request) {
 
   return Response.json({ ok: true, profile: payload });
 }
-

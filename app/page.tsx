@@ -30,19 +30,43 @@ type SearchProfile = {
   locations: string;
   needsSponsor: boolean;
   resumeSkills: string[];
+  resumeLanguage: "中文" | "英文";
 };
 
-const roleOptions = [
-  "直播电商 / 电商运营",
-  "策略运营",
-  "产品运营",
-  "用户增长",
-  "AI 业务运营",
-  "Strategy & Operations",
-  "Business Analyst",
-  "Data Analyst",
-  "FinTech / Consulting",
+const roleCatalog = [
+  { label: "直播电商运营", keywords: ["直播", "live commerce", "tiktok shop", "gmv", "主播"] },
+  { label: "电商运营", keywords: ["电商", "e-commerce", "ecommerce", "merchant", "商家"] },
+  { label: "策略运营", keywords: ["策略", "strategy", "business planning", "战略"] },
+  { label: "产品运营", keywords: ["产品运营", "product operations", "product adoption", "产品"] },
+  { label: "用户增长", keywords: ["用户增长", "growth", "acquisition", "retention", "转化"] },
+  { label: "AI 产品 / 业务运营", keywords: ["ai", "人工智能", "大模型", "llm", "machine learning"] },
+  { label: "商业化运营", keywords: ["商业化", "monetization", "revenue", "commercial"] },
+  { label: "内容运营", keywords: ["内容运营", "content", "creator", "社区运营"] },
+  { label: "商家运营", keywords: ["商家", "merchant", "seller", "account management"] },
+  { label: "市场运营", keywords: ["市场", "marketing", "campaign", "品牌"] },
+  { label: "数据运营", keywords: ["数据运营", "data analysis", "sql", "dashboard", "指标"] },
+  { label: "Strategy & Operations", keywords: ["strategy", "operations", "process improvement", "business planning"] },
+  { label: "Product Operations", keywords: ["product operations", "product adoption", "product launch", "customer insights"] },
+  { label: "Growth Operations", keywords: ["growth", "acquisition", "retention", "experimentation", "a/b testing"] },
+  { label: "Business Analyst", keywords: ["business analyst", "requirements", "process", "stakeholder", "商业分析"] },
+  { label: "Data Analyst", keywords: ["data analyst", "sql", "python", "tableau", "power bi", "数据分析"] },
+  { label: "Commercial Analyst", keywords: ["commercial", "revenue", "forecast", "market research", "financial modelling"] },
+  { label: "FinTech Operations", keywords: ["fintech", "payments", "banking", "financial services", "operations"] },
+  { label: "Risk / Fraud Operations", keywords: ["risk", "fraud", "compliance", "kyc", "aml"] },
+  { label: "Consulting Analyst", keywords: ["consulting", "client", "case", "recommendations", "problem solving"] },
+  { label: "Customer Success / Implementation", keywords: ["customer success", "implementation", "onboarding", "client services"] },
+  { label: "Marketing Operations", keywords: ["marketing operations", "campaign", "crm", "lifecycle", "marketing"] },
+  { label: "Project / Programme Coordinator", keywords: ["project management", "programme", "program", "coordination", "项目管理"] },
 ];
+
+function recommendRoles(resume: string) {
+  const value = resume.toLowerCase();
+  return roleCatalog
+    .map((role) => ({ ...role, score: role.keywords.filter((keyword) => value.includes(keyword)).length }))
+    .filter((role) => role.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((role) => role.label);
+}
 
 const seededJobs: Job[] = [
   {
@@ -334,10 +358,12 @@ export default function Home() {
   const [sponsorSearchError, setSponsorSearchError] = useState("");
   const [sponsorSearching, setSponsorSearching] = useState(false);
   const [selectedCountries, setSelectedCountries] = useState<Country[]>(["中国", "英国", "加拿大"]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(["直播电商 / 电商运营", "策略运营", "Strategy & Operations", "Business Analyst", "Data Analyst"]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(["直播电商运营", "电商运营", "策略运营", "Strategy & Operations", "Business Analyst", "Data Analyst"]);
   const [preferredLocations, setPreferredLocations] = useState("上海、杭州、伦敦、多伦多；可接受 Remote");
   const [needsSponsor, setNeedsSponsor] = useState(true);
   const [resumeSkills, setResumeSkills] = useState<string[]>([]);
+  const [resumeLanguage, setResumeLanguage] = useState<"中文" | "英文">("英文");
+  const [customRole, setCustomRole] = useState("");
   const [profileReady, setProfileReady] = useState(false);
   const [editingProfile, setEditingProfile] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -346,6 +372,15 @@ export default function Home() {
   const [targetCompanyCount, setTargetCompanyCount] = useState(38);
   const [liveSourceCount, setLiveSourceCount] = useState(12);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
+  const recommendedRoles = useMemo(() => recommendRoles(resumeText || resumeSkills.join(" ")).slice(0, 6), [resumeText, resumeSkills]);
+  const orderedRoleCatalog = useMemo(() => [...roleCatalog].sort((a, b) => {
+    const aRank = recommendedRoles.indexOf(a.label);
+    const bRank = recommendedRoles.indexOf(b.label);
+    if (aRank >= 0 && bRank >= 0) return aRank - bRank;
+    if (aRank >= 0) return -1;
+    if (bRank >= 0) return 1;
+    return 0;
+  }), [recommendedRoles]);
 
   useEffect(() => {
     let id = window.localStorage.getItem("offer-radar-client-id");
@@ -365,6 +400,7 @@ export default function Home() {
         setPreferredLocations(data.profile.locations);
         setNeedsSponsor(data.profile.needsSponsor);
         setResumeSkills(data.profile.resumeSkills);
+        setResumeLanguage(data.profile.resumeLanguage ?? "英文");
         setProfileReady(true);
         setEditingProfile(false);
       } catch {
@@ -503,8 +539,25 @@ export default function Home() {
     setSelectedRoles((current) => current.includes(item) ? current.filter((role) => role !== item) : [...current, item]);
   }
 
+  function addCustomRole() {
+    const value = customRole.trim();
+    if (!value) return;
+    setSelectedRoles((current) => current.some((role) => role.toLowerCase() === value.toLowerCase()) ? current : [...current, value]);
+    setCustomRole("");
+  }
+
+  function changeResumeLanguage(language: "中文" | "英文") {
+    if (language === resumeLanguage) return;
+    setResumeLanguage(language);
+    setResumeName("");
+    setResumeText("");
+    setResumeSkills([]);
+    setAtsResult(null);
+    setAtsError("");
+  }
+
   async function saveSearchProfile() {
-    if (!clientId || !resumeText || !selectedCountries.length || !selectedRoles.length) {
+    if (!clientId || (!resumeText && !resumeSkills.length) || !selectedCountries.length || !selectedRoles.length) {
       setAtsError("请先上传简历，并至少选择一个国家和一个求职方向。");
       return;
     }
@@ -521,6 +574,7 @@ export default function Home() {
           locations: preferredLocations,
           needsSponsor,
           resumeSkills,
+          resumeLanguage,
         }),
       });
       if (!response.ok) throw new Error("profile unavailable");
@@ -605,6 +659,8 @@ export default function Home() {
       setResumeName(file.name);
       setResumeText(text.trim());
       setResumeSkills(extractResumeSkills(text));
+      const suggestions = recommendRoles(text).slice(0, 3);
+      setSelectedRoles((current) => Array.from(new Set([...suggestions, ...current])));
     } catch {
       setResumeName("");
       setResumeText("");
@@ -728,11 +784,15 @@ export default function Home() {
                 <div className="profile-step resume-profile-step">
                   <span className="profile-step-number">01</span>
                   <strong>上传简历</strong>
-                  <p>PDF、DOCX 或 TXT；文件不离开当前浏览器</p>
+                  <p>先选择简历语言，再上传对应版本</p>
+                  <div className="resume-language-tabs" role="tablist" aria-label="简历语言版本">
+                    <button type="button" className={resumeLanguage === "中文" ? "selected" : ""} aria-pressed={resumeLanguage === "中文"} onClick={() => changeResumeLanguage("中文")}>中文版</button>
+                    <button type="button" className={resumeLanguage === "英文" ? "selected" : ""} aria-pressed={resumeLanguage === "英文"} onClick={() => changeResumeLanguage("英文")}>English CV</button>
+                  </div>
                   <label className={`profile-upload ${resumeText ? "ready" : ""}`}>
-                    <input type="file" accept=".pdf,.docx,.txt" onChange={readResume} />
-                    <span>{parsingResume ? "正在解析…" : resumeText ? "✓ 已识别简历" : "⇧ 选择简历"}</span>
-                    <small>{resumeName || "最大 10MB"}</small>
+                    <input key={resumeLanguage} type="file" accept=".pdf,.docx,.txt" onChange={readResume} />
+                    <span>{parsingResume ? "正在解析…" : resumeText ? `✓ 已识别${resumeLanguage}简历` : `⇧ 选择${resumeLanguage}简历`}</span>
+                    <small>{resumeName || "PDF、DOCX、TXT · 最大 10MB"}</small>
                   </label>
                   {resumeSkills.length > 0 && <div className="detected-skills">{resumeSkills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}</div>}
                 </div>
@@ -757,10 +817,24 @@ export default function Home() {
                 <div className="profile-step role-profile-step">
                   <span className="profile-step-number">03</span>
                   <strong>选择求职方向</strong>
-                  <p>结合简历技能共同计算匹配度</p>
+                  <p>{recommendedRoles.length ? `已根据${resumeLanguage}简历识别出 ${recommendedRoles.length} 个推荐方向` : "上传简历后会自动推荐；也可以自由选择或输入"}</p>
                   <div className="choice-grid role-choice-grid">
-                    {roleOptions.map((item) => <button key={item} className={selectedRoles.includes(item) ? "selected" : ""} onClick={() => toggleRole(item)}>{selectedRoles.includes(item) ? "✓ " : "+ "}{item}</button>)}
+                    {orderedRoleCatalog.map((item) => (
+                      <button type="button" key={item.label} className={`${selectedRoles.includes(item.label) ? "selected" : ""} ${recommendedRoles.includes(item.label) ? "recommended" : ""}`} onClick={() => toggleRole(item.label)}>
+                        {selectedRoles.includes(item.label) ? "✓ " : "+ "}{item.label}
+                        {recommendedRoles.includes(item.label) && <small>简历推荐</small>}
+                      </button>
+                    ))}
                   </div>
+                  <div className="custom-role-row">
+                    <input value={customRole} onChange={(event) => setCustomRole(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addCustomRole(); } }} placeholder="输入其他求职方向，例如：Creator Partnerships" aria-label="自定义求职方向" />
+                    <button type="button" onClick={addCustomRole}>添加</button>
+                  </div>
+                  {selectedRoles.filter((role) => !roleCatalog.some((item) => item.label === role)).length > 0 && (
+                    <div className="custom-role-tags">
+                      {selectedRoles.filter((role) => !roleCatalog.some((item) => item.label === role)).map((role) => <button type="button" key={role} onClick={() => toggleRole(role)}>✓ {role} ×</button>)}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -807,7 +881,7 @@ export default function Home() {
               <div className="resume-uploader">
                 <span className="step-number">01</span>
                 <div>
-                  <strong>上传英文简历</strong>
+                  <strong>当前使用：{resumeLanguage === "中文" ? "中文版简历" : "English CV"}</strong>
                   <p>支持可复制文字的 PDF、DOCX、TXT，最大 10MB</p>
                 </div>
                 <label className={`upload-zone ${resumeText ? "has-file" : ""}`}>

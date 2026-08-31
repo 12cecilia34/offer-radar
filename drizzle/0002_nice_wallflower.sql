@@ -1,0 +1,1 @@
+ALTER TABLE `profiles` ADD `resume_language` text DEFAULT '英文' NOT NULL;
