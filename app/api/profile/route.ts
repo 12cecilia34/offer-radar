@@ -10,6 +10,7 @@ type ProfilePayload = {
   needsSponsor?: boolean;
   resumeSkills?: string[];
   resumeLanguage?: "中文" | "英文";
+  careerStage?: "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
 };
 
 export async function GET(request: Request) {
@@ -48,6 +49,9 @@ export async function POST(request: Request) {
     needsSponsor: Boolean(payload.needsSponsor),
     resumeSkills: JSON.stringify((payload.resumeSkills ?? []).slice(0, 30)),
     resumeLanguage: payload.resumeLanguage === "中文" ? "中文" : "英文",
+    careerStage: payload.careerStage === "Internship" || payload.careerStage === "Graduate + Internship"
+      ? payload.careerStage
+      : "Graduate / Entry Level",
     updatedAt: new Date().toISOString(),
   };
 

@@ -1,0 +1,1 @@
+ALTER TABLE `profiles` ADD `career_stage` text DEFAULT 'Graduate / Entry Level' NOT NULL;

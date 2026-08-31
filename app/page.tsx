@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
+type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
 
 type Job = {
   id: string;
@@ -31,6 +32,7 @@ type SearchProfile = {
   needsSponsor: boolean;
   resumeSkills: string[];
   resumeLanguage: "中文" | "英文";
+  careerStage: CareerStage;
 };
 
 // Keep the ATS implementation available for the future resume-writing workspace,
@@ -288,6 +290,19 @@ const atsVocabulary = [
   "用户洞察",
   "跨部门协作",
   "项目管理",
+  "danish",
+  "swedish",
+  "german",
+  "norwegian",
+  "finnish",
+  "dutch",
+  "french",
+  "spanish",
+  "italian",
+  "polish",
+  "arabic",
+  "japanese",
+  "korean",
 ];
 
 function extractResumeSkills(resume: string) {
@@ -295,13 +310,49 @@ function extractResumeSkills(resume: string) {
   return atsVocabulary.filter((term) => value.includes(term)).slice(0, 30);
 }
 
+const seniorTitlePattern = /\b(?:senior|sr\.?|lead|principal|staff|manager|director|head|vice president|vp|chief)\b|高级|资深|负责人|总监|经理|主管|专家/i;
+const internshipPattern = /\b(?:intern|internship|placement)\b|实习/i;
+const graduateSignalPattern = /\b(?:graduate|new grad|entry[ -]level|early career|trainee)\b|2027|校招|应届|管培生|培训生/i;
+const entryLevelPattern = /\b(?:junior|associate|analyst|coordinator|assistant)\b/i;
+const languageRequirements = ["danish", "swedish", "german", "norwegian", "finnish", "dutch", "french", "spanish", "italian", "polish", "arabic", "japanese", "korean"];
+
+function graduateEligibility(job: Pick<Job, "role" | "requirements">, stage: CareerStage, resumeSignals: string) {
+  const title = job.role.toLowerCase();
+  const description = job.requirements.toLowerCase();
+  const explicitGraduate = graduateSignalPattern.test(title);
+  const internship = internshipPattern.test(title);
+  const seniorTitle = seniorTitlePattern.test(title);
+  const years = [
+    ...description.matchAll(/(?:minimum\s+|at least\s+)?(\d+)\+?\s*(?:years?|yrs?)(?:\s+of)?\s+(?:relevant\s+|professional\s+|work\s+)?experience/gi),
+    ...description.matchAll(/(\d+)\s*年(?:以上)?(?:相关)?工作经验/g),
+  ]
+    .map((match) => Number(match[1]))
+    .filter(Number.isFinite);
+  const requiredYears = years.length ? Math.min(...years) : 0;
+  const requiredLanguage = languageRequirements.find((language) => title.includes(language));
+  const knowsRequiredLanguage = !requiredLanguage || resumeSignals.toLowerCase().includes(requiredLanguage);
+
+  if (!knowsRequiredLanguage) return { eligible: false, level: "language" as const };
+  if ((seniorTitle || requiredYears >= 3) && !explicitGraduate) return { eligible: false, level: "senior" as const };
+  if (stage === "Graduate / Entry Level" && internship && !explicitGraduate) return { eligible: false, level: "internship" as const };
+  if (stage === "Internship" && !internship) return { eligible: false, level: "graduate" as const };
+  return { eligible: true, level: explicitGraduate || internship ? "entry" as const : "unspecified" as const };
+}
+
 function personalisedMatch(job: Pick<Job, "role" | "requirements" | "track">, roles: string[], skills: string[]) {
   const haystack = `${job.role} ${job.requirements} ${job.track}`.toLowerCase();
   const roleTerms = roles.flatMap((role) => role.toLowerCase().split(/[ /&|]+/)).filter((term) => term.length > 2);
-  const roleHits = roleTerms.filter((term) => haystack.includes(term)).length;
-  const skillHits = skills.filter((skill) => haystack.includes(skill.toLowerCase())).length;
-  const earlyCareer = /(graduate|new grad|junior|associate|entry|校招|应届)/i.test(job.role) ? 9 : 0;
-  return Math.min(97, Math.round(52 + Math.min(roleHits, 5) * 5 + Math.min(skillHits, 6) * 3 + earlyCareer));
+  const roleHits = [...new Set(roleTerms.filter((term) => haystack.includes(term)))];
+  const skillHits = skills.filter((skill) => haystack.includes(skill.toLowerCase()));
+  const earlyCareer = graduateSignalPattern.test(job.role) || entryLevelPattern.test(job.role) || internshipPattern.test(job.role);
+  const rawScore = 42 + Math.min(roleHits.length, 5) * 6 + Math.min(skillHits.length, 6) * 3 + (earlyCareer ? 12 : 0);
+  const score = Math.min(earlyCareer ? 95 : 74, Math.round(rawScore));
+  const reason = [
+    earlyCareer ? "符合 Graduate / Entry Level 职级" : "职位未标明资历，建议核验 JD",
+    roleHits.length ? `方向命中 ${roleHits.slice(0, 2).join(" / ")}` : "求职方向相关度一般",
+    skillHits.length ? `技能命中 ${skillHits.slice(0, 3).join(" / ")}` : "暂无明确技能命中",
+  ].join(" · ");
+  return { score, reason };
 }
 
 function analyseAts(resume: string, description: string): AtsResult {
@@ -365,6 +416,7 @@ export default function Home() {
   const [selectedRoles, setSelectedRoles] = useState<string[]>(["直播电商运营", "电商运营", "策略运营", "Strategy & Operations", "Business Analyst", "Data Analyst"]);
   const [preferredLocations, setPreferredLocations] = useState("上海、杭州、伦敦、多伦多；可接受 Remote");
   const [needsSponsor, setNeedsSponsor] = useState(true);
+  const [careerStage, setCareerStage] = useState<CareerStage>("Graduate / Entry Level");
   const [resumeSkills, setResumeSkills] = useState<string[]>([]);
   const [resumeLanguage, setResumeLanguage] = useState<"中文" | "英文">("英文");
   const [customRole, setCustomRole] = useState("");
@@ -377,6 +429,7 @@ export default function Home() {
   const [liveSourceCount, setLiveSourceCount] = useState(12);
   const [discoverySourceCount, setDiscoverySourceCount] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
+  const [filteredOutCount, setFilteredOutCount] = useState(0);
   const recommendedRoles = useMemo(() => recommendRoles(resumeText || resumeSkills.join(" ")).slice(0, 6), [resumeText, resumeSkills]);
   const orderedRoleCatalog = useMemo(() => [...roleCatalog].sort((a, b) => {
     const aRank = recommendedRoles.indexOf(a.label);
@@ -406,6 +459,7 @@ export default function Home() {
         setNeedsSponsor(data.profile.needsSponsor);
         setResumeSkills(data.profile.resumeSkills);
         setResumeLanguage(data.profile.resumeLanguage ?? "英文");
+        setCareerStage(data.profile.careerStage ?? "Graduate / Entry Level");
         setProfileReady(true);
         setEditingProfile(false);
       } catch {
@@ -417,11 +471,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || !profileReady || editingProfile) return;
     void loadRadar(selectedCountries);
-    // Load once for a new visitor; saving the profile triggers subsequent personalised loads.
+    // Refresh when the saved search profile changes so restored resume signals and career stage are applied.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId]);
+  }, [careerStage, clientId, editingProfile, profileReady, resumeSkills, selectedCountries, selectedRoles]);
 
   useEffect(() => {
     if (country !== "英国" || Object.keys(sponsorChecks).length > 0) return;
@@ -479,19 +533,23 @@ export default function Home() {
       const statesData = (await statesResponse.json()) as { states: Array<{ jobId: string; saved: boolean; status: Status }> };
       const nextStates = Object.fromEntries(statesData.states.map((state) => [state.jobId, { saved: state.saved, status: state.status }]));
       setSaved(statesData.states.filter((state) => state.saved).map((state) => state.jobId));
-      setJobs(jobsData.jobs.map((job) => {
+      const resumeSignals = `${resumeText} ${resumeSkills.join(" ")}`;
+      const eligibleJobs = jobsData.jobs.filter((job) => graduateEligibility({ role: job.role, requirements: job.description }, careerStage, resumeSignals).eligible);
+      setFilteredOutCount(jobsData.jobs.length - eligibleJobs.length);
+      setJobs(eligibleJobs.map((job) => {
         const base = {
           ...job,
           deadline: "官网为准",
           daysLeft: 99,
           requirements: job.description,
-          reason: "基于你的目标岗位与简历关键词计算",
+          reason: "",
           sponsorQuery: job.sponsorQuery ?? undefined,
           status: nextStates[job.id]?.status ?? "待申请" as Status,
           fresh: job.postedAt ? Date.now() - Date.parse(job.postedAt) < 7 * 24 * 60 * 60 * 1000 : false,
           match: 0,
         };
-        return { ...base, match: personalisedMatch(base, selectedRoles, resumeSkills) };
+        const match = personalisedMatch(base, selectedRoles, resumeSkills);
+        return { ...base, match: match.score, reason: match.reason };
       }));
       setTargetCompanyCount(jobsData.targetCompanies);
       setLiveSourceCount(jobsData.liveSources);
@@ -581,12 +639,12 @@ export default function Home() {
           needsSponsor,
           resumeSkills,
           resumeLanguage,
+          careerStage,
         }),
       });
       if (!response.ok) throw new Error("profile unavailable");
       setProfileReady(true);
       setEditingProfile(false);
-      await loadRadar(selectedCountries);
       setScanMessage("个人岗位雷达已生成，后续会按 24 小时数据窗口自动刷新。");
     } catch {
       setAtsError("求职画像暂时无法保存，请稍后再试。");
@@ -816,6 +874,14 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
+                  <div className="career-stage-field">
+                    <span>求职阶段</span>
+                    <div>
+                      {(["Graduate / Entry Level", "Internship", "Graduate + Internship"] as CareerStage[]).map((stage) => (
+                        <button type="button" key={stage} className={careerStage === stage ? "selected" : ""} onClick={() => setCareerStage(stage)}>{stage === "Graduate / Entry Level" ? "Graduate" : stage === "Internship" ? "Intern" : "两者都看"}</button>
+                      ))}
+                    </div>
+                  </div>
                   <label className="profile-text-field">偏好城市 / Remote<input value={preferredLocations} onChange={(event) => setPreferredLocations(event.target.value)} /></label>
                   {selectedCountries.includes("英国") && (
                     <label className="sponsor-toggle"><input type="checkbox" checked={needsSponsor} onChange={(event) => setNeedsSponsor(event.target.checked)} /><span />我需要 Skilled Worker Sponsorship</label>
@@ -1007,7 +1073,7 @@ export default function Home() {
 
             <div className={`live-note ${radarError ? "error" : ""}`}>
               <span>{radarLoading ? "SYNC" : radarError ? "RETRY" : "LIVE"}</span>
-              {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `已合并 Greenhouse、Lever、腾讯公开职位接口、公司校招官网及官方公众号线索；每条都保留原始来源。`}
+              {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `${careerStage === "Internship" ? "Intern" : careerStage === "Graduate + Internship" ? "Graduate + Intern" : "Graduate"} 模式已过滤 ${filteredOutCount} 个职级或语言条件不符岗位；每条结果都保留原始来源。`}
             </div>
 
             {country === "英国" && (
@@ -1079,7 +1145,7 @@ export default function Home() {
                         <small>牌照状态 ≠ 该岗位承诺担保</small>
                       </div>
                     )}
-                    <p className="match-reason"><b>AI 匹配理由</b>{job.reason}</p>
+                    <p className="match-reason"><b>匹配理由</b>{job.reason}</p>
                   </div>
                   <div className="job-meta">
                     <div className={`deadline ${deadlineTone(job.daysLeft)}`}>

@@ -103,6 +103,11 @@ button { color: inherit; }
 .resume-language-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: -3px 0 9px; padding: 3px; background: #ecece6; border-radius: 8px; }
 .resume-language-tabs button { border: 0; border-radius: 6px; background: transparent; color: #727d77; padding: 7px 6px; font-size: 9px; font-weight: 700; cursor: pointer; }
 .resume-language-tabs button.selected { background: white; color: var(--green-dark); box-shadow: 0 1px 5px rgba(0,0,0,.09); }
+.career-stage-field { display: grid; gap: 5px; margin-top: 13px; }
+.career-stage-field > span { color: #6e7973; font-size: 8px; font-weight: 700; }
+.career-stage-field > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; background: #ecece6; border-radius: 8px; }
+.career-stage-field button { border: 0; border-radius: 6px; background: transparent; color: #727d77; padding: 7px 4px; font-size: 8px; font-weight: 700; cursor: pointer; }
+.career-stage-field button.selected { background: white; color: var(--green-dark); box-shadow: 0 1px 5px rgba(0,0,0,.09); }
 .choice-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .choice-grid button { border: 1px solid #d0d4ce; background: #fff; border-radius: 7px; color: #66716c; padding: 7px 9px; font-size: 9px; cursor: pointer; }
 .choice-grid button.selected { border-color: var(--green); background: #e5f0e7; color: var(--green-dark); font-weight: 800; box-shadow: inset 0 0 0 1px rgba(30,106,76,.12); }
