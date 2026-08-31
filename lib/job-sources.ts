@@ -4,7 +4,7 @@ export type JobSource = {
   company: string;
   country: TargetCountry;
   careersUrl: string;
-  provider: "greenhouse" | "lever" | "official";
+  provider: "greenhouse" | "lever" | "tencent" | "official";
   token?: string;
   sponsorQuery?: string;
 };
@@ -14,7 +14,7 @@ export const jobSources: JobSource[] = [
   { company: "Alibaba", country: "中国", careersUrl: "https://talent.alibaba.com/", provider: "official" },
   { company: "Ant Group", country: "中国", careersUrl: "https://talent.antgroup.com/", provider: "official" },
   { company: "Meituan", country: "中国", careersUrl: "https://zhaopin.meituan.com/", provider: "official" },
-  { company: "Tencent", country: "中国", careersUrl: "https://join.qq.com/", provider: "official" },
+  { company: "Tencent", country: "中国", careersUrl: "https://join.qq.com/", provider: "tencent" },
   { company: "JD.com", country: "中国", careersUrl: "https://zhaopin.jd.com/", provider: "official" },
   { company: "PDD / Temu", country: "中国", careersUrl: "https://careers.pddglobalhr.com/", provider: "official" },
   { company: "Xiaohongshu", country: "中国", careersUrl: "https://job.xiaohongshu.com/", provider: "official" },
@@ -53,4 +53,3 @@ export const jobSources: JobSource[] = [
 ];
 
 export const liveSourceCount = jobSources.filter((source) => source.provider !== "official").length;
-

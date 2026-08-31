@@ -371,6 +371,7 @@ export default function Home() {
   const [radarError, setRadarError] = useState("");
   const [targetCompanyCount, setTargetCompanyCount] = useState(38);
   const [liveSourceCount, setLiveSourceCount] = useState(12);
+  const [discoverySourceCount, setDiscoverySourceCount] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const recommendedRoles = useMemo(() => recommendRoles(resumeText || resumeSkills.join(" ")).slice(0, 6), [resumeText, resumeSkills]);
   const orderedRoleCatalog = useMemo(() => [...roleCatalog].sort((a, b) => {
@@ -469,7 +470,7 @@ export default function Home() {
           id: string; company: string; role: string; country: Country; city: string; track: string;
           source: string; sourceUrl: string; description: string; postedAt?: string | null; sponsorQuery?: string | null;
         }>;
-        targetCompanies: number; liveSources: number; syncedAt?: string;
+        targetCompanies: number; liveSources: number; discoverySources?: number; syncedAt?: string;
       };
       const statesData = (await statesResponse.json()) as { states: Array<{ jobId: string; saved: boolean; status: Status }> };
       const nextStates = Object.fromEntries(statesData.states.map((state) => [state.jobId, { saved: state.saved, status: state.status }]));
@@ -490,6 +491,7 @@ export default function Home() {
       }));
       setTargetCompanyCount(jobsData.targetCompanies);
       setLiveSourceCount(jobsData.liveSources);
+      setDiscoverySourceCount(jobsData.discoverySources ?? 0);
       setLastSyncedAt(jobsData.syncedAt ?? "");
     } catch {
       setRadarError("真实岗位源暂时无法同步，请稍后重新扫描。");
@@ -525,7 +527,7 @@ export default function Home() {
   async function startScan() {
     if (scanning) return;
     setScanning(true);
-    setScanMessage(`正在检查 ${targetCompanyCount} 家目标公司与 ${liveSourceCount} 个实时职位流…`);
+    setScanMessage(`正在检查 ${targetCompanyCount} 家目标公司、官方职位接口、校招公告与公众号线索…`);
     await loadRadar(selectedCountries);
     setScanning(false);
     setScanMessage("扫描完成：岗位已去重，并按你的简历与求职意愿重新排序。 ");
@@ -758,12 +760,12 @@ export default function Home() {
             <div>
               <span className="kicker">YOUR GLOBAL GRADUATE JOB COPILOT</span>
               <h1>从你的简历出发，<em>搜索真正适合的岗位。</em></h1>
-              <p>上传简历并告诉我们国家、岗位与签证需求。Offer Radar 会建立 30–50 家目标公司池，读取官方职位源、去重并按个人匹配度排序。</p>
+              <p>上传简历并告诉我们国家、岗位与签证需求。Offer Radar 会搜索官方职位接口、公司招聘官网、校招公告与可核验的公众号线索，去重后按个人匹配度排序。</p>
             </div>
             <button className={`scan-button ${scanning ? "is-scanning" : ""}`} onClick={startScan}>
               <span className="scan-symbol">✦</span>
               {scanning ? "正在扫描…" : "刷新个人雷达"}
-              <small>{targetCompanyCount} 家公司 · {liveSourceCount} 个实时职位流</small>
+              <small>{targetCompanyCount} 家公司 · {liveSourceCount} 个职位接口 · {discoverySourceCount} 条校招线索</small>
             </button>
           </section>
 
@@ -997,7 +999,7 @@ export default function Home() {
 
             <div className={`live-note ${radarError ? "error" : ""}`}>
               <span>{radarLoading ? "SYNC" : radarError ? "RETRY" : "LIVE"}</span>
-              {radarLoading ? "正在从官方职位流读取和去重岗位…" : radarError || `岗位来自 Greenhouse、Lever 官方职位流；公司官网未提供截止日期时统一标记为“官网为准”。`}
+              {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `已合并 Greenhouse、Lever、腾讯公开职位接口、公司校招官网及官方公众号线索；每条都保留原始来源。`}
             </div>
 
             {country === "英国" && (
@@ -1087,14 +1089,14 @@ export default function Home() {
                 </article>
               ))}
               {filteredJobs.length === 0 && (
-                <div className="empty-state"><span>{radarLoading ? "◌" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : "暂时没有匹配岗位"}</h3><p>{radarLoading ? "首次读取官方职位源可能需要一点时间。" : "试试调整国家、岗位方向或取消收藏筛选。"}</p></div>
+                <div className="empty-state"><span>{radarLoading ? "◌" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : "这不代表市场上没有岗位；请取消收藏筛选、调整搜索词，或点击“刷新个人雷达”重新抓取。"}</p></div>
               )}
             </div>
           </section>
 
           <section className="source-strip">
-            <div><span className="source-icon">⌁</span><p><strong>{targetCompanyCount} 家目标公司正在关注</strong><small>Greenhouse · Lever · 企业官方招聘页</small></p></div>
-            <div className="source-health"><span><i />{liveSourceCount} 实时职位流</span><span><i className="warn" />其余官网监测</span></div>
+            <div><span className="source-icon">⌁</span><p><strong>{targetCompanyCount} 家目标公司正在关注</strong><small>官方职位接口 · 企业招聘官网 · 校招公告 · 公众号线索</small></p></div>
+            <div className="source-health"><span><i />{liveSourceCount} 实时职位接口</span><span><i className="warn" />{discoverySourceCount} 条校招渠道</span></div>
             <button>管理信息源 →</button>
           </section>
         </section>
