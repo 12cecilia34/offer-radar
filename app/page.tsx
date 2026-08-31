@@ -221,9 +221,52 @@ const countryMeta: Record<Country, { flag: string; label: string }> = {
 };
 
 function deadlineTone(days: number) {
+  if (days < 0 || days >= 9999) return "safe";
   if (days <= 7) return "urgent";
   if (days <= 14) return "soon";
   return "safe";
+}
+
+const englishMonths: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+};
+
+function deadlineInfo(date: Date) {
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysLeft = Math.ceil((target.getTime() - today.getTime()) / 86_400_000);
+  return { label: `${target.getMonth() + 1}月${target.getDate()}日`, daysLeft };
+}
+
+function extractDeadline(description: string) {
+  const chineseRange = description.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*(?:至|到|—|-)\s*(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日/);
+  if (chineseRange) {
+    return deadlineInfo(new Date(Number(chineseRange[4] || chineseRange[1]), Number(chineseRange[5]) - 1, Number(chineseRange[6])));
+  }
+
+  const chineseDeadline = description.match(/(?:申请|投递|报名)?(?:截止|截至)(?:日期|时间)?[^\d]{0,12}(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})日?/);
+  if (chineseDeadline) {
+    return deadlineInfo(new Date(Number(chineseDeadline[1]), Number(chineseDeadline[2]) - 1, Number(chineseDeadline[3])));
+  }
+
+  const englishDeadline = description.match(/(?:closing date|application deadline|apply by|applications? close(?:s)?(?: on)?)[^a-z0-9]{0,20}(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i);
+  if (englishDeadline) {
+    return deadlineInfo(new Date(Number(englishDeadline[3]), englishMonths[englishDeadline[2].toLowerCase()], Number(englishDeadline[1])));
+  }
+
+  const englishMonthFirst = description.match(/(?:closing date|application deadline|apply by|applications? close(?:s)?(?: on)?)[^a-z0-9]{0,20}(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/i);
+  if (englishMonthFirst) {
+    return deadlineInfo(new Date(Number(englishMonthFirst[3]), englishMonths[englishMonthFirst[1].toLowerCase()], Number(englishMonthFirst[2])));
+  }
+
+  const numericDeadline = description.match(/(?:closing date|application deadline|apply by|applications? close(?:s)?(?: on)?)[^\d]{0,20}(\d{1,2})[/-](\d{1,2})[/-](\d{4})/i);
+  if (numericDeadline) {
+    return deadlineInfo(new Date(Number(numericDeadline[3]), Number(numericDeadline[2]) - 1, Number(numericDeadline[1])));
+  }
+  return null;
 }
 
 type AtsResult = {
@@ -632,10 +675,14 @@ export default function Home() {
           .toLowerCase()
           .includes(normalized),
       )
-      .sort((a, b) =>
-        sort === "match" ? b.match - a.match : a.daysLeft - b.daysLeft,
-      );
+      .sort((a, b) => {
+        if (sort === "match") return b.match - a.match;
+        const aDeadline = a.daysLeft >= 0 && a.daysLeft < 9999 ? a.daysLeft : Number.MAX_SAFE_INTEGER;
+        const bDeadline = b.daysLeft >= 0 && b.daysLeft < 9999 ? b.daysLeft : Number.MAX_SAFE_INTEGER;
+        return aDeadline - bDeadline || b.match - a.match;
+      });
   }, [country, jobs, query, saved, showSaved, sort]);
+  const knownDeadlineCount = useMemo(() => jobs.filter((job) => job.daysLeft < 9999).length, [jobs]);
 
   async function loadRadar(countries: Country[]) {
     setRadarLoading(true);
@@ -660,10 +707,11 @@ export default function Home() {
       const eligibleJobs = jobsData.jobs.filter((job) => graduateEligibility({ role: job.role, requirements: job.description }, careerStage, resumeSignals).eligible);
       setFilteredOutCount(jobsData.jobs.length - eligibleJobs.length);
       setJobs(eligibleJobs.map((job) => {
+        const parsedDeadline = extractDeadline(job.description);
         const base = {
           ...job,
-          deadline: "官网为准",
-          daysLeft: 99,
+          deadline: parsedDeadline?.label ?? "官网为准",
+          daysLeft: parsedDeadline?.daysLeft ?? 9999,
           requirements: job.description,
           reason: "",
           sponsorQuery: job.sponsorQuery ?? undefined,
@@ -1211,14 +1259,14 @@ export default function Home() {
                 </label>
                 <select value={sort} onChange={(event) => setSort(event.target.value as "match" | "deadline")} aria-label="排序方式">
                   <option value="match">匹配度优先</option>
-                  <option value="deadline">截止日期优先</option>
+                  <option value="deadline">截止日期优先（未知在后）</option>
                 </select>
               </div>
             </div>
 
             <div className={`live-note ${radarError ? "error" : ""}`}>
               <span>{radarLoading ? "SYNC" : radarError ? "RETRY" : "LIVE"}</span>
-              {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `${careerStage === "Internship" ? "Intern" : careerStage === "Graduate + Internship" ? "Graduate + Intern" : "Graduate"} 模式已过滤 ${filteredOutCount} 个职级或语言条件不符岗位；每条结果都保留原始来源。`}
+              {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `${careerStage === "Internship" ? "Intern" : careerStage === "Graduate + Internship" ? "Graduate + Intern" : "Graduate"} 模式已过滤 ${filteredOutCount} 个职级或语言条件不符岗位；已识别 ${knownDeadlineCount}/${jobs.length} 个截止日期。`}
             </div>
 
             {country === "英国" && (
@@ -1299,7 +1347,7 @@ export default function Home() {
                   </div>
                   <div className="job-meta">
                     <div className={`deadline ${deadlineTone(job.daysLeft)}`}>
-                      <span>申请截止</span><strong>{job.deadline}</strong><small>{job.daysLeft < 90 ? `剩余 ${job.daysLeft} 天` : "日期待核验"}</small>
+                      <span>申请截止</span><strong>{job.deadline}</strong><small>{job.daysLeft < 0 ? "已截止" : job.daysLeft < 9999 ? `剩余 ${job.daysLeft} 天` : "日期待核验"}</small>
                     </div>
                     <div className="match-score"><strong>{job.match}%</strong><span>匹配度</span></div>
                     <div className="job-actions">
