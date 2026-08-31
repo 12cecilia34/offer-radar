@@ -33,6 +33,10 @@ type SearchProfile = {
   resumeLanguage: "中文" | "英文";
 };
 
+// Keep the ATS implementation available for the future resume-writing workspace,
+// but remove it from the current job-discovery flow.
+const atsWorkspaceEnabled = false;
+
 const roleCatalog = [
   { label: "直播电商运营", keywords: ["直播", "live commerce", "tiktok shop", "gmv", "主播"] },
   { label: "电商运营", keywords: ["电商", "e-commerce", "ecommerce", "merchant", "商家"] },
@@ -740,9 +744,11 @@ export default function Home() {
               <span>♡</span>我的收藏 <b>{saved.length}</b>
             </button>
             <button className="nav-item"><span>▤</span>申请看板 <b>{appliedCount}</b></button>
-            <button className="nav-item" onClick={() => document.getElementById("ats-workspace")?.scrollIntoView({ behavior: "smooth" })}>
-              <span>◉</span>ATS 简历匹配
-            </button>
+            {atsWorkspaceEnabled && (
+              <button className="nav-item" onClick={() => document.getElementById("ats-workspace")?.scrollIntoView({ behavior: "smooth" })}>
+                <span>◉</span>ATS 简历匹配
+              </button>
+            )}
             <button className="nav-item"><span>◎</span>信息源</button>
           </nav>
 
@@ -869,6 +875,7 @@ export default function Home() {
             </div>
           </section>
 
+          {atsWorkspaceEnabled && (
           <section className="ats-panel" id="ats-workspace">
             <div className="ats-heading">
               <div>
@@ -963,6 +970,7 @@ export default function Home() {
               </div>
             )}
           </section>
+          )}
 
           <section className="radar-panel">
             <div className="panel-heading">
@@ -1082,7 +1090,7 @@ export default function Home() {
                       <button className={saved.includes(job.id) ? "saved" : ""} onClick={() => toggleSaved(job.id)} aria-label={saved.includes(job.id) ? "取消收藏" : "收藏岗位"}>
                         {saved.includes(job.id) ? "♥" : "♡"}
                       </button>
-                      <button className="ats-job-button" onClick={() => selectJobForAts(job)} aria-label={`用 ${job.company} 的岗位描述进行 ATS 匹配`}>ATS</button>
+                      {atsWorkspaceEnabled && <button className="ats-job-button" onClick={() => selectJobForAts(job)} aria-label={`用 ${job.company} 的岗位描述进行 ATS 匹配`}>ATS</button>}
                       <a href={job.sourceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>
                     </div>
                   </div>
