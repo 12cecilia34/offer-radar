@@ -1409,7 +1409,7 @@ export default function Home() {
             <button className="modal-close" onClick={() => setShowSources(false)} aria-label="关闭">×</button>
             <span className="eyebrow">SOURCE COVERAGE</span>
             <h2>当前监控 {sourceCompanies.length} 家公司</h2>
-            <p>绿色标记为自动读取的官方职位流；其余公司持续监控招聘官网，并保留官网入口。</p>
+            <p>绿色标记为自动读取的官方职位流；其余公司已纳入目标池并提供官方招聘入口，不会把官网入口伪装成实时岗位。</p>
             <div className="source-company-grid">
               {sourceCompanies.map((source) => (
                 <a href={source.careersUrl} target="_blank" rel="noreferrer" key={`${source.country}-${source.company}`}>

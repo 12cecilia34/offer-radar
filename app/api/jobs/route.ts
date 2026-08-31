@@ -310,7 +310,7 @@ export async function GET(request: Request) {
       country: source.country,
       careersUrl: source.careersUrl,
       live: source.provider !== "official",
-      provider: source.provider === "official" ? "官网监控" : `${source.provider[0].toUpperCase()}${source.provider.slice(1)} 官方职位流`,
+      provider: source.provider === "official" ? "官方招聘入口" : `${source.provider[0].toUpperCase()}${source.provider.slice(1)} 官方职位流`,
     })),
     totalCompanies: jobSources.length,
     totalLiveSources: liveSourceCount,
