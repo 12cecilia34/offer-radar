@@ -5,6 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
+type DashboardView = "radar" | "saved" | "applications";
 type MatchDimension = { label: string; score: number; max: number };
 type SourceCompany = { company: string; country: Country; careersUrl: string; live: boolean; provider: string };
 
@@ -549,7 +550,7 @@ export default function Home() {
   const [sort, setSort] = useState<"match" | "deadline">("match");
   const [saved, setSaved] = useState<string[]>([]);
   const [clientId, setClientId] = useState("");
-  const [showSaved, setShowSaved] = useState(false);
+  const [activeView, setActiveView] = useState<DashboardView>("radar");
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -671,7 +672,8 @@ export default function Home() {
     const normalized = query.trim().toLowerCase();
     return jobs
       .filter((job) => country === "全部" || job.country === country)
-      .filter((job) => !showSaved || saved.includes(job.id))
+      .filter((job) => activeView !== "saved" || saved.includes(job.id))
+      .filter((job) => activeView !== "applications" || job.status !== "待申请")
       .filter((job) =>
         [job.company, job.role, job.track, job.city]
           .join(" ")
@@ -684,7 +686,7 @@ export default function Home() {
         const bDeadline = b.daysLeft >= 0 && b.daysLeft < 9999 ? b.daysLeft : Number.MAX_SAFE_INTEGER;
         return aDeadline - bDeadline || b.match - a.match;
       });
-  }, [country, jobs, query, saved, showSaved, sort]);
+  }, [activeView, country, jobs, query, saved, sort]);
   const knownDeadlineCount = useMemo(() => jobs.filter((job) => job.daysLeft < 9999).length, [jobs]);
 
   async function loadRadar(countries: Country[]) {
@@ -748,6 +750,11 @@ export default function Home() {
         body: JSON.stringify({ clientId, jobId: id, saved: nextSaved }),
       });
     }
+  }
+
+  function openDashboardView(view: DashboardView) {
+    setActiveView(view);
+    window.setTimeout(() => document.getElementById("radar-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }
 
   function changeStatus(id: string, status: Status) {
@@ -973,7 +980,7 @@ export default function Home() {
     }
   }
 
-  const appliedCount = jobs.filter((job) => job.status === "已申请").length;
+  const applicationCount = jobs.filter((job) => job.status !== "待申请").length;
 
   return (
     <main className="app-shell">
@@ -993,17 +1000,17 @@ export default function Home() {
       <div className="layout" id="top">
         <aside className="sidebar" aria-label="主导航">
           <nav>
-            <button className="nav-item active"><span>⌁</span>岗位雷达</button>
-            <button className="nav-item" onClick={() => setShowSaved(!showSaved)}>
+            <button className={`nav-item ${activeView === "radar" ? "active" : ""}`} onClick={() => openDashboardView("radar")}><span>⌁</span>岗位雷达</button>
+            <button className={`nav-item ${activeView === "saved" ? "active" : ""}`} onClick={() => openDashboardView("saved")}>
               <span>♡</span>我的收藏 <b>{saved.length}</b>
             </button>
-            <button className="nav-item"><span>▤</span>申请看板 <b>{appliedCount}</b></button>
+            <button className={`nav-item ${activeView === "applications" ? "active" : ""}`} onClick={() => openDashboardView("applications")}><span>▤</span>申请看板 <b>{applicationCount}</b></button>
             {atsWorkspaceEnabled && (
               <button className="nav-item" onClick={() => document.getElementById("ats-workspace")?.scrollIntoView({ behavior: "smooth" })}>
                 <span>◉</span>ATS 简历匹配
               </button>
             )}
-            <button className="nav-item"><span>◎</span>信息源</button>
+            <button className={`nav-item ${showSources ? "active" : ""}`} onClick={() => setShowSources(true)}><span>◎</span>信息源</button>
           </nav>
 
           <div className="profile-card">
@@ -1235,11 +1242,11 @@ export default function Home() {
           </section>
           )}
 
-          <section className="radar-panel">
+          <section className="radar-panel" id="radar-panel">
             <div className="panel-heading">
               <div>
-                <span className="eyebrow">LIVE OPPORTUNITY FEED</span>
-                <h2>为你找到的岗位</h2>
+                <span className="eyebrow">{activeView === "saved" ? "SAVED OPPORTUNITIES" : activeView === "applications" ? "APPLICATION TRACKER" : "LIVE OPPORTUNITY FEED"}</span>
+                <h2>{activeView === "saved" ? "我的收藏" : activeView === "applications" ? "申请看板" : "为你找到的岗位"}</h2>
               </div>
               <button className="secondary-button" onClick={() => setShowAdd(true)}>＋ 手动添加</button>
             </div>
@@ -1365,7 +1372,7 @@ export default function Home() {
                 </article>
               ))}
               {filteredJobs.length === 0 && (
-                <div className="empty-state"><span>{radarLoading ? "◌" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : "这不代表市场上没有岗位；请取消收藏筛选、调整搜索词，或点击“刷新个人雷达”重新抓取。"}</p></div>
+                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏。" : activeView === "applications" ? "回到岗位雷达，把岗位状态改为“准备中”或“已申请”后会出现在这里。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
               )}
             </div>
           </section>
