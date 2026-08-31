@@ -5,6 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
+type MatchDimension = { label: string; score: number; max: number };
 
 type Job = {
   id: string;
@@ -23,6 +24,8 @@ type Job = {
   sponsorQuery?: string;
   status: Status;
   fresh?: boolean;
+  matchBreakdown?: MatchDimension[];
+  missingSignals?: string[];
 };
 
 type SearchProfile = {
@@ -303,6 +306,52 @@ const atsVocabulary = [
   "arabic",
   "japanese",
   "korean",
+  "crm",
+  "salesforce",
+  "hubspot",
+  "looker",
+  "google analytics",
+  "ga4",
+  "snowflake",
+  "bigquery",
+  "dbt",
+  "spss",
+  "powerpoint",
+  "forecasting",
+  "budgeting",
+  "kyc",
+  "aml",
+  "compliance",
+  "risk management",
+  "fraud prevention",
+  "payments",
+  "banking",
+  "consulting",
+  "customer success",
+  "campaign management",
+  "content strategy",
+  "creator partnerships",
+  "account management",
+  "marketplace",
+  "merchant operations",
+  "seller operations",
+  "experimentation",
+  "retention",
+  "acquisition",
+  "segmentation",
+  "presentation",
+  "communication",
+  "客户成功",
+  "风险管理",
+  "反欺诈",
+  "支付",
+  "银行",
+  "咨询",
+  "内容策略",
+  "达人运营",
+  "商家运营",
+  "市场分析",
+  "活动运营",
 ];
 
 function extractResumeSkills(resume: string) {
@@ -339,20 +388,81 @@ function graduateEligibility(job: Pick<Job, "role" | "requirements">, stage: Car
   return { eligible: true, level: explicitGraduate || internship ? "entry" as const : "unspecified" as const };
 }
 
-function personalisedMatch(job: Pick<Job, "role" | "requirements" | "track">, roles: string[], skills: string[]) {
+function resumeStorageKey(language: "中文" | "英文") {
+  return `offer-radar-resume-${language === "中文" ? "zh" : "en"}`;
+}
+
+function uniqueTerms(values: string[]) {
+  return [...new Set(values.map((value) => value.trim().toLowerCase()).filter((value) => value.length > 1))];
+}
+
+function extractEvidenceTerms(value: string) {
+  const stopwords = new Set(["ability", "about", "after", "also", "and", "are", "been", "being", "business", "candidates", "company", "experience", "for", "from", "have", "including", "into", "job", "looking", "more", "our", "required", "responsibilities", "role", "skills", "strong", "support", "team", "that", "the", "their", "this", "through", "using", "will", "with", "work", "you", "your", "负责", "岗位", "工作", "相关", "要求", "具备", "以及"]);
+  return uniqueTerms(value.toLowerCase().match(/[a-z][a-z0-9+#.-]{2,}/g) ?? []).filter((term) => !stopwords.has(term));
+}
+
+function educationLevel(value: string) {
+  if (/\b(?:phd|doctorate)\b|博士/i.test(value)) return 4;
+  if (/\b(?:master'?s?|msc|ma|mba|meng)\b|硕士|研究生/i.test(value)) return 3;
+  if (/\b(?:bachelor'?s?|bsc|ba|beng|undergraduate|degree)\b|本科|学士/i.test(value)) return 2;
+  if (/college|university|大学|教育经历/i.test(value)) return 1;
+  return 0;
+}
+
+function personalisedMatch(
+  job: Pick<Job, "role" | "requirements" | "track" | "city" | "country">,
+  roles: string[],
+  skills: string[],
+  resumeText: string,
+  preferredLocations: string,
+) {
   const haystack = `${job.role} ${job.requirements} ${job.track}`.toLowerCase();
-  const roleTerms = roles.flatMap((role) => role.toLowerCase().split(/[ /&|]+/)).filter((term) => term.length > 2);
-  const roleHits = [...new Set(roleTerms.filter((term) => haystack.includes(term)))];
-  const skillHits = skills.filter((skill) => haystack.includes(skill.toLowerCase()));
+  const resume = `${resumeText} ${skills.join(" ")}`.toLowerCase();
+  const selectedRoleKeywords = uniqueTerms(roles.flatMap((selectedRole) => {
+    const catalogRole = roleCatalog.find((item) => item.label === selectedRole);
+    return [selectedRole, ...(catalogRole?.keywords ?? []), ...selectedRole.split(/[ /&|]+/)];
+  }));
+  const jobRoleSignals = selectedRoleKeywords.filter((term) => haystack.includes(term));
+  const resumeRoleSignals = selectedRoleKeywords.filter((term) => resume.includes(term));
+  const requestedSkills = uniqueTerms(atsVocabulary.filter((term) => haystack.includes(term)));
+  const matchedSkills = requestedSkills.filter((term) => resume.includes(term));
+  const missingSkills = requestedSkills.filter((term) => !resume.includes(term));
+  const evidenceTerms = extractEvidenceTerms(`${job.role} ${job.requirements}`)
+    .filter((term) => term.length > 3)
+    .slice(0, 80);
+  const evidenceHits = evidenceTerms.filter((term) => resume.includes(term));
+  const hasMetrics = /\b\d+(?:\.\d+)?%|£[\d,.]+|\$[\d,.]+|\b\d+[kKmM]\b|提升|增长|降低|节省/i.test(resumeText);
+  const hasActionEvidence = /(led|built|analysed|analyzed|improved|delivered|managed|launched|owned|drove|increased|reduced|负责|推动|搭建|提升|优化|主导)/i.test(resumeText);
   const earlyCareer = graduateSignalPattern.test(job.role) || entryLevelPattern.test(job.role) || internshipPattern.test(job.role);
-  const rawScore = 42 + Math.min(roleHits.length, 5) * 6 + Math.min(skillHits.length, 6) * 3 + (earlyCareer ? 12 : 0);
-  const score = Math.min(earlyCareer ? 95 : 74, Math.round(rawScore));
-  const reason = [
-    earlyCareer ? "符合 Graduate / Entry Level 职级" : "职位未标明资历，建议核验 JD",
-    roleHits.length ? `方向命中 ${roleHits.slice(0, 2).join(" / ")}` : "求职方向相关度一般",
-    skillHits.length ? `技能命中 ${skillHits.slice(0, 3).join(" / ")}` : "暂无明确技能命中",
-  ].join(" · ");
-  return { score, reason };
+  const careerScore = earlyCareer ? 15 : 10;
+  const roleScore = Math.min(25, (jobRoleSignals.length ? 13 : 3) + Math.min(resumeRoleSignals.length, 4) * 3);
+  const skillScore = requestedSkills.length
+    ? Math.round(25 * matchedSkills.length / requestedSkills.length)
+    : Math.min(15, 7 + Math.min(evidenceHits.length, 8));
+  const evidenceCoverage = evidenceTerms.length ? evidenceHits.length / Math.min(evidenceTerms.length, 20) : 0;
+  const evidenceScore = Math.min(20, Math.round(Math.min(evidenceCoverage, 1) * 15) + (hasMetrics ? 3 : 0) + (hasActionEvidence ? 2 : 0));
+  const resumeEducation = educationLevel(resumeText);
+  const requestedEducation = educationLevel(job.requirements);
+  const educationScore = requestedEducation ? (resumeEducation >= requestedEducation ? 7 : 0) : (resumeEducation ? 5 : 3);
+  const requiredLanguage = languageRequirements.find((language) => haystack.includes(language));
+  const languageScore = requiredLanguage ? (resume.includes(requiredLanguage) ? 3 : 0) : 3;
+  const educationLanguageScore = educationScore + languageScore;
+  const locationText = preferredLocations.toLowerCase();
+  const locationScore = locationText.includes(job.city.toLowerCase()) || (job.city.toLowerCase().includes("remote") && /remote|远程/i.test(preferredLocations)) ? 5 : 3;
+  const breakdown: MatchDimension[] = [
+    { label: "职级", score: careerScore, max: 15 },
+    { label: "方向", score: roleScore, max: 25 },
+    { label: "技能", score: skillScore, max: 25 },
+    { label: "经历证据", score: evidenceScore, max: 20 },
+    { label: "教育语言", score: educationLanguageScore, max: 10 },
+    { label: "地点", score: locationScore, max: 5 },
+  ];
+  const score = breakdown.reduce((total, item) => total + item.score, 0);
+  const missingSignals = uniqueTerms([...missingSkills, ...evidenceTerms.filter((term) => !resume.includes(term))]).slice(0, 4);
+  const reason = resumeText
+    ? `完整简历匹配：${matchedSkills.length ? `命中 ${matchedSkills.slice(0, 3).join(" / ")}` : "技能命中较少"}${missingSignals.length ? `；待核验 ${missingSignals.slice(0, 2).join(" / ")}` : "；未发现明显关键词缺口"}`
+    : "当前只有技能标签，重新上传简历后才能恢复教育、经历与成果匹配";
+  return { score, reason, breakdown, missingSignals };
 }
 
 function analyseAts(resume: string, description: string): AtsResult {
@@ -460,6 +570,19 @@ export default function Home() {
         setResumeSkills(data.profile.resumeSkills);
         setResumeLanguage(data.profile.resumeLanguage ?? "英文");
         setCareerStage(data.profile.careerStage ?? "Graduate / Entry Level");
+        try {
+          const cachedResume = window.localStorage.getItem(resumeStorageKey(data.profile.resumeLanguage ?? "英文"));
+          if (cachedResume) {
+            const parsed = JSON.parse(cachedResume) as { name?: string; text?: string };
+            if (parsed.text && parsed.text.length >= 80) {
+              setResumeText(parsed.text);
+              setResumeName(parsed.name ?? "本浏览器保存的简历文本");
+              setResumeSkills((current) => uniqueTerms([...extractResumeSkills(parsed.text!), ...current]).slice(0, 30));
+            }
+          }
+        } catch {
+          // A corrupt device-local cache should not block the saved search profile.
+        }
         setProfileReady(true);
         setEditingProfile(false);
       } catch {
@@ -475,7 +598,7 @@ export default function Home() {
     void loadRadar(selectedCountries);
     // Refresh when the saved search profile changes so restored resume signals and career stage are applied.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [careerStage, clientId, editingProfile, profileReady, resumeSkills, selectedCountries, selectedRoles]);
+  }, [careerStage, clientId, editingProfile, preferredLocations, profileReady, resumeSkills, resumeText, selectedCountries, selectedRoles]);
 
   useEffect(() => {
     if (country !== "英国" || Object.keys(sponsorChecks).length > 0) return;
@@ -548,8 +671,8 @@ export default function Home() {
           fresh: job.postedAt ? Date.now() - Date.parse(job.postedAt) < 7 * 24 * 60 * 60 * 1000 : false,
           match: 0,
         };
-        const match = personalisedMatch(base, selectedRoles, resumeSkills);
-        return { ...base, match: match.score, reason: match.reason };
+        const match = personalisedMatch(base, selectedRoles, resumeSkills, resumeText, preferredLocations);
+        return { ...base, match: match.score, reason: match.reason, matchBreakdown: match.breakdown, missingSignals: match.missingSignals };
       }));
       setTargetCompanyCount(jobsData.targetCompanies);
       setLiveSourceCount(jobsData.liveSources);
@@ -613,9 +736,24 @@ export default function Home() {
   function changeResumeLanguage(language: "中文" | "英文") {
     if (language === resumeLanguage) return;
     setResumeLanguage(language);
-    setResumeName("");
-    setResumeText("");
-    setResumeSkills([]);
+    try {
+      const cachedResume = window.localStorage.getItem(resumeStorageKey(language));
+      if (cachedResume) {
+        const parsed = JSON.parse(cachedResume) as { name?: string; text?: string };
+        const cachedText = parsed.text?.trim() ?? "";
+        setResumeName(parsed.name ?? "本浏览器保存的简历文本");
+        setResumeText(cachedText);
+        setResumeSkills(extractResumeSkills(cachedText));
+      } else {
+        setResumeName("");
+        setResumeText("");
+        setResumeSkills([]);
+      }
+    } catch {
+      setResumeName("");
+      setResumeText("");
+      setResumeSkills([]);
+    }
     setAtsResult(null);
     setAtsError("");
   }
@@ -721,8 +859,14 @@ export default function Home() {
         throw new Error("empty");
       }
       setResumeName(file.name);
-      setResumeText(text.trim());
+      const parsedText = text.trim();
+      setResumeText(parsedText);
       setResumeSkills(extractResumeSkills(text));
+      try {
+        window.localStorage.setItem(resumeStorageKey(resumeLanguage), JSON.stringify({ name: file.name, text: parsedText }));
+      } catch {
+        // Full matching still works for this session when device storage is unavailable.
+      }
       const suggestions = recommendRoles(text).slice(0, 3);
       setSelectedRoles((current) => Array.from(new Set([...suggestions, ...current])));
     } catch {
@@ -815,6 +959,7 @@ export default function Home() {
             <strong>{profileReady ? "个人岗位雷达已建立" : "等待创建个人画像"}</strong>
             <p>{selectedCountries.join(" · ")} · {selectedRoles.slice(0, 2).join(" / ")}</p>
             <div className="profile-tags">{resumeSkills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
+            {profileReady && <small className={`full-match-status ${resumeText ? "ready" : "limited"}`}>{resumeText ? "✓ 完整简历匹配已启用" : "! 当前仅使用技能标签"}</small>}
             <button onClick={() => { setEditingProfile(true); document.getElementById("profile-builder")?.scrollIntoView({ behavior: "smooth" }); }}>编辑求职偏好 →</button>
           </div>
         </aside>
@@ -840,7 +985,7 @@ export default function Home() {
               <div>
                 <span className="kicker">PERSONALISED SEARCH PROFILE</span>
                 <h2>{profileReady && !editingProfile ? "你的岗位雷达正在运行" : "先让雷达认识你，再开始搜索。"}</h2>
-                <p>{profileReady && !editingProfile ? `正在关注 ${selectedCountries.join("、")}的 ${selectedRoles.length} 个求职方向，目标公司池会随偏好变化。` : "简历文件只在浏览器中解析；数据库仅保存技能标签和求职偏好，不保存原文件。"}</p>
+                <p>{profileReady && !editingProfile ? `${resumeText ? "完整简历匹配已启用：" : "当前只有技能标签："}正在关注 ${selectedCountries.join("、")}的 ${selectedRoles.length} 个求职方向。${resumeText ? "教育、经历、成果、技能、语言与地点都会进入评分。" : "请重新上传简历以恢复完整匹配。"}` : "简历文件和解析文本只保存在当前浏览器；数据库仅保存技能标签和求职偏好，不保存原文件。"}</p>
               </div>
               {profileReady && !editingProfile && <button className="secondary-button" onClick={() => setEditingProfile(true)}>编辑画像</button>}
             </div>
@@ -917,7 +1062,7 @@ export default function Home() {
               <>
                 {atsError && <div className="profile-error">{atsError}</div>}
                 <div className="profile-builder-footer">
-                  <span>隐私说明：保存技能标签与偏好，不上传或保存简历文件。</span>
+              <span>隐私说明：完整简历文本仅保存在当前浏览器；服务器只保存技能标签与求职偏好。</span>
                   <button onClick={saveSearchProfile} disabled={savingProfile || parsingResume}>{savingProfile ? "正在生成…" : "✦ 生成我的岗位雷达"}</button>
                 </div>
               </>
@@ -1146,6 +1291,11 @@ export default function Home() {
                       </div>
                     )}
                     <p className="match-reason"><b>匹配理由</b>{job.reason}</p>
+                    {job.matchBreakdown && (
+                      <div className="match-breakdown" aria-label={`${job.company} 匹配维度`}>
+                        {job.matchBreakdown.map((dimension) => <span key={dimension.label}>{dimension.label} <b>{dimension.score}/{dimension.max}</b></span>)}
+                      </div>
+                    )}
                   </div>
                   <div className="job-meta">
                     <div className={`deadline ${deadlineTone(job.daysLeft)}`}>

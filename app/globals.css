@@ -61,6 +61,9 @@ button { color: inherit; }
 .profile-card .eyebrow { color: var(--lime); margin-bottom: 10px; }
 .profile-card strong { font-size: 14px; }
 .profile-card p { color: #afbbb7; font-size: 11px; line-height: 1.5; }
+.full-match-status { display: block; margin-top: 10px; font-size: 9px; }
+.full-match-status.ready { color: #cfe989; }
+.full-match-status.limited { color: #e7bd69; }
 .profile-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .profile-tags span { border: 1px solid #4e5b57; color: #dce4e0; font-size: 10px; padding: 4px 6px; border-radius: 5px; }
 .profile-card button { margin-top: 15px; padding: 0; border: 0; background: none; color: var(--lime); font-size: 11px; font-weight: 700; cursor: pointer; }
@@ -271,6 +274,9 @@ button { color: inherit; }
 .job-sponsor-row small { color: #999f9b; font-size: 8px; }
 .match-reason { margin: 10px 0 0; color: #65716c; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .match-reason b { color: var(--green); margin-right: 7px; }
+.match-breakdown { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.match-breakdown span { padding: 3px 5px; border-radius: 4px; background: #f0f2ec; color: #78817d; font-size: 7px; }
+.match-breakdown b { color: var(--green-dark); font-weight: 900; }
 .job-meta { display: grid; grid-template-columns: 92px 60px 1fr; align-items: center; gap: 11px; }
 .deadline { border-left: 2px solid #bfc6c1; padding-left: 10px; display: grid; gap: 3px; }
 .deadline.urgent { border-color: var(--orange); }
