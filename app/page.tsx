@@ -6,7 +6,7 @@ type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
 
 type Job = {
-  id: number;
+  id: string;
   company: string;
   role: string;
   country: Country;
@@ -24,9 +24,29 @@ type Job = {
   fresh?: boolean;
 };
 
+type SearchProfile = {
+  countries: Country[];
+  roles: string[];
+  locations: string;
+  needsSponsor: boolean;
+  resumeSkills: string[];
+};
+
+const roleOptions = [
+  "直播电商 / 电商运营",
+  "策略运营",
+  "产品运营",
+  "用户增长",
+  "AI 业务运营",
+  "Strategy & Operations",
+  "Business Analyst",
+  "Data Analyst",
+  "FinTech / Consulting",
+];
+
 const seededJobs: Job[] = [
   {
-    id: 1,
+    id: "seed-1",
     company: "TikTok Shop",
     role: "电商策略运营｜校招",
     country: "中国",
@@ -43,7 +63,7 @@ const seededJobs: Job[] = [
     fresh: true,
   },
   {
-    id: 2,
+    id: "seed-2",
     company: "美团",
     role: "产品运营｜商业化方向",
     country: "中国",
@@ -59,7 +79,7 @@ const seededJobs: Job[] = [
     status: "待申请",
   },
   {
-    id: 3,
+    id: "seed-3",
     company: "蚂蚁集团",
     role: "AI 业务策略运营",
     country: "中国",
@@ -76,7 +96,7 @@ const seededJobs: Job[] = [
     fresh: true,
   },
   {
-    id: 4,
+    id: "seed-4",
     company: "Revolut",
     role: "Strategy & Operations Graduate",
     country: "英国",
@@ -93,7 +113,7 @@ const seededJobs: Job[] = [
     status: "待申请",
   },
   {
-    id: 5,
+    id: "seed-5",
     company: "Wise",
     role: "Product Operations Graduate",
     country: "英国",
@@ -110,7 +130,7 @@ const seededJobs: Job[] = [
     status: "已申请",
   },
   {
-    id: 6,
+    id: "seed-6",
     company: "Deloitte",
     role: "Business & Strategy Analyst",
     country: "英国",
@@ -127,7 +147,7 @@ const seededJobs: Job[] = [
     status: "待申请",
   },
   {
-    id: 7,
+    id: "seed-7",
     company: "Shopify",
     role: "Strategy & Operations, Early Career",
     country: "加拿大",
@@ -144,7 +164,7 @@ const seededJobs: Job[] = [
     fresh: true,
   },
   {
-    id: 8,
+    id: "seed-8",
     company: "RBC",
     role: "Business Data Analyst, New Grad",
     country: "加拿大",
@@ -242,6 +262,20 @@ const atsVocabulary = [
   "项目管理",
 ];
 
+function extractResumeSkills(resume: string) {
+  const value = resume.toLowerCase();
+  return atsVocabulary.filter((term) => value.includes(term)).slice(0, 30);
+}
+
+function personalisedMatch(job: Pick<Job, "role" | "requirements" | "track">, roles: string[], skills: string[]) {
+  const haystack = `${job.role} ${job.requirements} ${job.track}`.toLowerCase();
+  const roleTerms = roles.flatMap((role) => role.toLowerCase().split(/[ /&|]+/)).filter((term) => term.length > 2);
+  const roleHits = roleTerms.filter((term) => haystack.includes(term)).length;
+  const skillHits = skills.filter((skill) => haystack.includes(skill.toLowerCase())).length;
+  const earlyCareer = /(graduate|new grad|junior|associate|entry|校招|应届)/i.test(job.role) ? 9 : 0;
+  return Math.min(97, Math.round(52 + Math.min(roleHits, 5) * 5 + Math.min(skillHits, 6) * 3 + earlyCareer));
+}
+
 function analyseAts(resume: string, description: string): AtsResult {
   const resumeLower = resume.toLowerCase();
   const descriptionLower = description.toLowerCase();
@@ -276,12 +310,12 @@ function analyseAts(resume: string, description: string): AtsResult {
 }
 
 export default function Home() {
-  const [jobs, setJobs] = useState<Job[]>(seededJobs);
+  const [jobs, setJobs] = useState<Job[]>(() => seededJobs.slice(0, 0));
   const [country, setCountry] = useState<"全部" | Country>("全部");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"match" | "deadline">("match");
-  const [saved, setSaved] = useState<number[]>([]);
-  const [savedReady, setSavedReady] = useState(false);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [clientId, setClientId] = useState("");
   const [showSaved, setShowSaved] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
@@ -299,27 +333,63 @@ export default function Home() {
   const [sponsorSearchResult, setSponsorSearchResult] = useState<SponsorCheck | null>(null);
   const [sponsorSearchError, setSponsorSearchError] = useState("");
   const [sponsorSearching, setSponsorSearching] = useState(false);
+  const [selectedCountries, setSelectedCountries] = useState<Country[]>(["中国", "英国", "加拿大"]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>(["直播电商 / 电商运营", "策略运营", "Strategy & Operations", "Business Analyst", "Data Analyst"]);
+  const [preferredLocations, setPreferredLocations] = useState("上海、杭州、伦敦、多伦多；可接受 Remote");
+  const [needsSponsor, setNeedsSponsor] = useState(true);
+  const [resumeSkills, setResumeSkills] = useState<string[]>([]);
+  const [profileReady, setProfileReady] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [radarLoading, setRadarLoading] = useState(false);
+  const [radarError, setRadarError] = useState("");
+  const [targetCompanyCount, setTargetCompanyCount] = useState(38);
+  const [liveSourceCount, setLiveSourceCount] = useState(12);
+  const [lastSyncedAt, setLastSyncedAt] = useState("");
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const stored = window.localStorage.getItem("offer-radar-saved");
-      if (stored) setSaved(JSON.parse(stored));
-      setSavedReady(true);
-    }, 0);
+    let id = window.localStorage.getItem("offer-radar-client-id");
+    if (!id) {
+      id = window.crypto.randomUUID();
+      window.localStorage.setItem("offer-radar-client-id", id);
+    }
+    const timer = window.setTimeout(() => setClientId(id), 0);
+
+    async function restoreProfile() {
+      try {
+        const response = await fetch(`/api/profile?clientId=${encodeURIComponent(id!)}`);
+        const data = (await response.json()) as { profile?: SearchProfile | null };
+        if (!data.profile) return;
+        setSelectedCountries(data.profile.countries);
+        setSelectedRoles(data.profile.roles);
+        setPreferredLocations(data.profile.locations);
+        setNeedsSponsor(data.profile.needsSponsor);
+        setResumeSkills(data.profile.resumeSkills);
+        setProfileReady(true);
+        setEditingProfile(false);
+      } catch {
+        // A new visitor can still complete the profile if persistence is temporarily unavailable.
+      }
+    }
+    void restoreProfile();
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (savedReady) {
-      window.localStorage.setItem("offer-radar-saved", JSON.stringify(saved));
-    }
-  }, [saved, savedReady]);
+    if (!clientId) return;
+    void loadRadar(selectedCountries);
+    // Load once for a new visitor; saving the profile triggers subsequent personalised loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
 
   useEffect(() => {
     if (country !== "英国" || Object.keys(sponsorChecks).length > 0) return;
-    const companies = seededJobs
+    const companies = jobs
       .map((job) => job.sponsorQuery)
       .filter((query): query is string => Boolean(query));
+    if (!companies.length) {
+      return;
+    }
     fetch(`/api/sponsors?companies=${encodeURIComponent(companies.join("|"))}`)
       .then((response) => response.json() as Promise<SponsorApiResponse>)
       .then((data) => {
@@ -331,7 +401,7 @@ export default function Home() {
       })
       .catch(() => setSponsorSearchError("官方名单暂时无法连接，请稍后重试。"))
       .finally(() => setSponsorLoading(false));
-  }, [country, sponsorChecks]);
+  }, [country, jobs, sponsorChecks]);
 
   const filteredJobs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -349,28 +419,127 @@ export default function Home() {
       );
   }, [country, jobs, query, saved, showSaved, sort]);
 
-  function toggleSaved(id: number) {
-    setSaved((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
+  async function loadRadar(countries: Country[]) {
+    setRadarLoading(true);
+    setRadarError("");
+    try {
+      const [jobsResponse, statesResponse] = await Promise.all([
+        fetch(`/api/jobs?countries=${encodeURIComponent(countries.join(","))}`),
+        fetch(`/api/job-state?clientId=${encodeURIComponent(clientId)}`),
+      ]);
+      if (!jobsResponse.ok || !statesResponse.ok) throw new Error("radar unavailable");
+      const jobsData = (await jobsResponse.json()) as {
+        jobs: Array<{
+          id: string; company: string; role: string; country: Country; city: string; track: string;
+          source: string; sourceUrl: string; description: string; postedAt?: string | null; sponsorQuery?: string | null;
+        }>;
+        targetCompanies: number; liveSources: number; syncedAt?: string;
+      };
+      const statesData = (await statesResponse.json()) as { states: Array<{ jobId: string; saved: boolean; status: Status }> };
+      const nextStates = Object.fromEntries(statesData.states.map((state) => [state.jobId, { saved: state.saved, status: state.status }]));
+      setSaved(statesData.states.filter((state) => state.saved).map((state) => state.jobId));
+      setJobs(jobsData.jobs.map((job) => {
+        const base = {
+          ...job,
+          deadline: "官网为准",
+          daysLeft: 99,
+          requirements: job.description,
+          reason: "基于你的目标岗位与简历关键词计算",
+          sponsorQuery: job.sponsorQuery ?? undefined,
+          status: nextStates[job.id]?.status ?? "待申请" as Status,
+          fresh: job.postedAt ? Date.now() - Date.parse(job.postedAt) < 7 * 24 * 60 * 60 * 1000 : false,
+          match: 0,
+        };
+        return { ...base, match: personalisedMatch(base, selectedRoles, resumeSkills) };
+      }));
+      setTargetCompanyCount(jobsData.targetCompanies);
+      setLiveSourceCount(jobsData.liveSources);
+      setLastSyncedAt(jobsData.syncedAt ?? "");
+    } catch {
+      setRadarError("真实岗位源暂时无法同步，请稍后重新扫描。");
+      setJobs([]);
+    } finally {
+      setRadarLoading(false);
+    }
   }
 
-  function startScan() {
+  function toggleSaved(id: string) {
+    const nextSaved = !saved.includes(id);
+    setSaved((current) => nextSaved ? [...current, id] : current.filter((item) => item !== id));
+    if (clientId) {
+      void fetch("/api/job-state", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientId, jobId: id, saved: nextSaved }),
+      });
+    }
+  }
+
+  function changeStatus(id: string, status: Status) {
+    setJobs((current) => current.map((job) => job.id === id ? { ...job, status } : job));
+    if (clientId) {
+      void fetch("/api/job-state", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientId, jobId: id, status }),
+      });
+    }
+  }
+
+  async function startScan() {
     if (scanning) return;
     setScanning(true);
-    setScanMessage("正在检查 12 个招聘来源…");
-    window.setTimeout(() => setScanMessage("正在去重并计算岗位匹配度…"), 900);
-    window.setTimeout(() => {
-      setScanning(false);
-      setScanMessage("扫描完成：发现 3 条高匹配示例岗位，已排在列表前列");
-    }, 1900);
+    setScanMessage(`正在检查 ${targetCompanyCount} 家目标公司与 ${liveSourceCount} 个实时职位流…`);
+    await loadRadar(selectedCountries);
+    setScanning(false);
+    setScanMessage("扫描完成：岗位已去重，并按你的简历与求职意愿重新排序。 ");
+  }
+
+  function toggleCountry(item: Country) {
+    setSelectedCountries((current) => current.includes(item) ? current.filter((countryItem) => countryItem !== item) : [...current, item]);
+  }
+
+  function toggleRole(item: string) {
+    setSelectedRoles((current) => current.includes(item) ? current.filter((role) => role !== item) : [...current, item]);
+  }
+
+  async function saveSearchProfile() {
+    if (!clientId || !resumeText || !selectedCountries.length || !selectedRoles.length) {
+      setAtsError("请先上传简历，并至少选择一个国家和一个求职方向。");
+      return;
+    }
+    setSavingProfile(true);
+    setAtsError("");
+    try {
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          countries: selectedCountries,
+          roles: selectedRoles,
+          locations: preferredLocations,
+          needsSponsor,
+          resumeSkills,
+        }),
+      });
+      if (!response.ok) throw new Error("profile unavailable");
+      setProfileReady(true);
+      setEditingProfile(false);
+      await loadRadar(selectedCountries);
+      setScanMessage("个人岗位雷达已生成，后续会按 24 小时数据窗口自动刷新。");
+    } catch {
+      setAtsError("求职画像暂时无法保存，请稍后再试。");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   function addJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const newJob: Job = {
-      id: Date.now(),
+      id: `manual-${Date.now()}`,
       company: String(form.get("company")),
       role: String(form.get("role")),
       country: form.get("country") as Country,
@@ -435,6 +604,7 @@ export default function Home() {
       }
       setResumeName(file.name);
       setResumeText(text.trim());
+      setResumeSkills(extractResumeSkills(text));
     } catch {
       setResumeName("");
       setResumeText("");
@@ -488,7 +658,6 @@ export default function Home() {
   }
 
   const appliedCount = jobs.filter((job) => job.status === "已申请").length;
-  const urgentCount = jobs.filter((job) => job.daysLeft <= 7).length;
 
   return (
     <main className="app-shell">
@@ -499,7 +668,7 @@ export default function Home() {
           <span className="beta">BETA</span>
         </a>
         <div className="top-actions">
-          <span className="last-sync"><i /> 上次同步：12 分钟前</span>
+          <span className="last-sync"><i /> {lastSyncedAt ? `上次同步：${new Date(lastSyncedAt).toLocaleDateString("zh-CN")}` : "正在连接职位源"}</span>
           <button className="icon-button" aria-label="通知">◔</button>
           <span className="avatar">M</span>
         </div>
@@ -521,10 +690,10 @@ export default function Home() {
 
           <div className="profile-card">
             <span className="eyebrow">求职画像</span>
-            <strong>2027届 · 英国硕士</strong>
-            <p>运营优先 · 海外 Strategy / BA / DA</p>
-            <div className="profile-tags"><span>TikTok</span><span>电商</span><span>AI</span></div>
-            <button>编辑求职偏好 →</button>
+            <strong>{profileReady ? "个人岗位雷达已建立" : "等待创建个人画像"}</strong>
+            <p>{selectedCountries.join(" · ")} · {selectedRoles.slice(0, 2).join(" / ")}</p>
+            <div className="profile-tags">{resumeSkills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
+            <button onClick={() => { setEditingProfile(true); document.getElementById("profile-builder")?.scrollIntoView({ behavior: "smooth" }); }}>编辑求职偏好 →</button>
           </div>
         </aside>
 
@@ -532,24 +701,87 @@ export default function Home() {
           <section className="hero">
             <div>
               <span className="kicker">YOUR GLOBAL GRADUATE JOB COPILOT</span>
-              <h1>把三国秋招，<em>收进一个雷达。</em></h1>
-              <p>AI 每天替你扫描目标岗位、合并重复信息、追踪截止日期，只留下真正值得申请的机会。</p>
+              <h1>从你的简历出发，<em>搜索真正适合的岗位。</em></h1>
+              <p>上传简历并告诉我们国家、岗位与签证需求。Offer Radar 会建立 30–50 家目标公司池，读取官方职位源、去重并按个人匹配度排序。</p>
             </div>
             <button className={`scan-button ${scanning ? "is-scanning" : ""}`} onClick={startScan}>
               <span className="scan-symbol">✦</span>
-              {scanning ? "正在扫描…" : "开始 AI 扫描"}
-              <small>12 个信息源</small>
+              {scanning ? "正在扫描…" : "刷新个人雷达"}
+              <small>{targetCompanyCount} 家公司 · {liveSourceCount} 个实时职位流</small>
             </button>
           </section>
 
           {scanMessage && <div className={`scan-message ${scanning ? "loading" : "done"}`}>{scanMessage}</div>}
 
+          <section className={`profile-builder ${editingProfile ? "expanded" : "compact"}`} id="profile-builder">
+            <div className="profile-builder-head">
+              <div>
+                <span className="kicker">PERSONALISED SEARCH PROFILE</span>
+                <h2>{profileReady && !editingProfile ? "你的岗位雷达正在运行" : "先让雷达认识你，再开始搜索。"}</h2>
+                <p>{profileReady && !editingProfile ? `正在关注 ${selectedCountries.join("、")}的 ${selectedRoles.length} 个求职方向，目标公司池会随偏好变化。` : "简历文件只在浏览器中解析；数据库仅保存技能标签和求职偏好，不保存原文件。"}</p>
+              </div>
+              {profileReady && !editingProfile && <button className="secondary-button" onClick={() => setEditingProfile(true)}>编辑画像</button>}
+            </div>
+
+            {editingProfile && (
+              <div className="profile-builder-grid">
+                <div className="profile-step resume-profile-step">
+                  <span className="profile-step-number">01</span>
+                  <strong>上传简历</strong>
+                  <p>PDF、DOCX 或 TXT；文件不离开当前浏览器</p>
+                  <label className={`profile-upload ${resumeText ? "ready" : ""}`}>
+                    <input type="file" accept=".pdf,.docx,.txt" onChange={readResume} />
+                    <span>{parsingResume ? "正在解析…" : resumeText ? "✓ 已识别简历" : "⇧ 选择简历"}</span>
+                    <small>{resumeName || "最大 10MB"}</small>
+                  </label>
+                  {resumeSkills.length > 0 && <div className="detected-skills">{resumeSkills.slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}</div>}
+                </div>
+
+                <div className="profile-step">
+                  <span className="profile-step-number">02</span>
+                  <strong>选择求职国家</strong>
+                  <p>系统会据此生成对应的目标公司池</p>
+                  <div className="choice-grid country-choice-grid">
+                    {(["中国", "英国", "加拿大"] as Country[]).map((item) => (
+                      <button key={item} className={selectedCountries.includes(item) ? "selected" : ""} onClick={() => toggleCountry(item)}>
+                        <span>{countryMeta[item].flag}</span>{item}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="profile-text-field">偏好城市 / Remote<input value={preferredLocations} onChange={(event) => setPreferredLocations(event.target.value)} /></label>
+                  {selectedCountries.includes("英国") && (
+                    <label className="sponsor-toggle"><input type="checkbox" checked={needsSponsor} onChange={(event) => setNeedsSponsor(event.target.checked)} /><span />我需要 Skilled Worker Sponsorship</label>
+                  )}
+                </div>
+
+                <div className="profile-step role-profile-step">
+                  <span className="profile-step-number">03</span>
+                  <strong>选择求职方向</strong>
+                  <p>结合简历技能共同计算匹配度</p>
+                  <div className="choice-grid role-choice-grid">
+                    {roleOptions.map((item) => <button key={item} className={selectedRoles.includes(item) ? "selected" : ""} onClick={() => toggleRole(item)}>{selectedRoles.includes(item) ? "✓ " : "+ "}{item}</button>)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {editingProfile && (
+              <>
+                {atsError && <div className="profile-error">{atsError}</div>}
+                <div className="profile-builder-footer">
+                  <span>隐私说明：保存技能标签与偏好，不上传或保存简历文件。</span>
+                  <button onClick={saveSearchProfile} disabled={savingProfile || parsingResume}>{savingProfile ? "正在生成…" : "✦ 生成我的岗位雷达"}</button>
+                </div>
+              </>
+            )}
+          </section>
+
           <section className="stats" aria-label="岗位概览">
             <div className="stat-card">
               <span>匹配岗位</span><strong>{jobs.length}</strong><small>当前追踪</small>
             </div>
-            <div className="stat-card urgent-stat">
-              <span>即将截止</span><strong>{urgentCount}</strong><small>7 天以内</small>
+            <div className="stat-card">
+              <span>目标公司</span><strong>{targetCompanyCount}</strong><small>随画像动态生成</small>
             </div>
             <div className="stat-card">
               <span>本周新增</span><strong>{jobs.filter((job) => job.fresh).length}</strong><small>已去重</small>
@@ -557,7 +789,7 @@ export default function Home() {
             <div className="stat-card country-stat">
               <span>覆盖国家</span>
               <div className="flags"><i>🇨🇳</i><i>🇬🇧</i><i>🇨🇦</i></div>
-              <small>中国 · 英国 · 加拿大</small>
+              <small>{liveSourceCount} 个官方职位流已连接</small>
             </div>
           </section>
 
@@ -660,14 +892,14 @@ export default function Home() {
             <div className="panel-heading">
               <div>
                 <span className="eyebrow">LIVE OPPORTUNITY FEED</span>
-                <h2>高匹配岗位</h2>
+                <h2>为你找到的岗位</h2>
               </div>
               <button className="secondary-button" onClick={() => setShowAdd(true)}>＋ 手动添加</button>
             </div>
 
             <div className="filters">
               <div className="country-tabs" role="tablist" aria-label="按国家筛选">
-                {(["全部", "中国", "英国", "加拿大"] as const).map((item) => (
+                {(["全部", ...selectedCountries] as const).map((item) => (
                   <button
                     key={item}
                     className={country === item ? "selected" : ""}
@@ -689,8 +921,9 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="demo-note">
-              <span>DEMO</span> 当前为产品演示数据；正式版接入招聘官网与搜索服务后，将显示实时岗位和经核验的截止日期。
+            <div className={`live-note ${radarError ? "error" : ""}`}>
+              <span>{radarLoading ? "SYNC" : radarError ? "RETRY" : "LIVE"}</span>
+              {radarLoading ? "正在从官方职位流读取和去重岗位…" : radarError || `岗位来自 Greenhouse、Lever 官方职位流；公司官网未提供截止日期时统一标记为“官网为准”。`}
             </div>
 
             {country === "英国" && (
@@ -744,7 +977,11 @@ export default function Home() {
                     </div>
                     <p className="company-line">{job.company} <span>·</span> {countryMeta[job.country].flag} {job.city}</p>
                     <div className="job-tags">
-                      <span>{job.track}</span><span>{job.status}</span><span>{job.source}</span>
+                      <span>{job.track}</span>
+                      <select value={job.status} onChange={(event) => changeStatus(job.id, event.target.value as Status)} aria-label={`${job.company} 申请状态`}>
+                        <option>待申请</option><option>准备中</option><option>已申请</option>
+                      </select>
+                      <span>{job.source}</span>
                     </div>
                     {job.sponsorQuery && (
                       <div className="job-sponsor-row">
@@ -776,14 +1013,14 @@ export default function Home() {
                 </article>
               ))}
               {filteredJobs.length === 0 && (
-                <div className="empty-state"><span>⌕</span><h3>暂时没有匹配岗位</h3><p>试试更换国家、搜索关键词或取消收藏筛选。</p></div>
+                <div className="empty-state"><span>{radarLoading ? "◌" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : "暂时没有匹配岗位"}</h3><p>{radarLoading ? "首次读取官方职位源可能需要一点时间。" : "试试调整国家、岗位方向或取消收藏筛选。"}</p></div>
               )}
             </div>
           </section>
 
           <section className="source-strip">
-            <div><span className="source-icon">⌁</span><p><strong>12 个来源保持连接</strong><small>企业官网 · Graduate portals · 招聘平台</small></p></div>
-            <div className="source-health"><span><i />10 正常</span><span><i className="warn" />2 待授权</span></div>
+            <div><span className="source-icon">⌁</span><p><strong>{targetCompanyCount} 家目标公司正在关注</strong><small>Greenhouse · Lever · 企业官方招聘页</small></p></div>
+            <div className="source-health"><span><i />{liveSourceCount} 实时职位流</span><span><i className="warn" />其余官网监测</span></div>
             <button>管理信息源 →</button>
           </section>
         </section>

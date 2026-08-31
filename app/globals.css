@@ -82,6 +82,45 @@ button { color: inherit; }
 .scan-message.loading { background: #f4f8dc; border-color: #d5df98; color: #65702a; }
 .scan-message.done { background: #e8f5ed; border-color: #b9d7c5; color: #286044; }
 
+.profile-builder { margin: 30px 0; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 16px 45px rgba(38, 48, 42, .07); scroll-margin-top: 92px; }
+.profile-builder-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 25px; padding: 27px 29px 24px; }
+.profile-builder-head .kicker { margin-bottom: 9px; }
+.profile-builder-head h2 { margin: 0; font: 500 29px/1.15 Georgia, "Songti SC", serif; letter-spacing: -.03em; }
+.profile-builder-head p { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.65; max-width: 720px; }
+.profile-builder.compact { background: #edf1e4; border-color: #d4dac9; }
+.profile-builder-grid { display: grid; grid-template-columns: .9fr 1fr 1.35fr; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--line); gap: 1px; }
+.profile-step { min-width: 0; padding: 23px; background: var(--paper); }
+.profile-step-number { display: block; margin-bottom: 10px; color: var(--green); font: 700 10px/1 Arial, sans-serif; letter-spacing: .13em; }
+.profile-step > strong { font-size: 13px; }
+.profile-step > p { min-height: 29px; margin: 5px 0 15px; color: #7b8580; font-size: 9px; line-height: 1.5; }
+.profile-upload { min-height: 91px; border: 1px dashed #aab4ae; border-radius: 9px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; background: #f7f6f0; cursor: pointer; text-align: center; padding: 13px; }
+.profile-upload:hover, .profile-upload.ready { border-color: var(--green); background: #edf5ed; }
+.profile-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.profile-upload span { color: var(--green); font-size: 11px; font-weight: 800; }
+.profile-upload small { max-width: 220px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #7f8984; font-size: 8px; }
+.detected-skills { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 4px; }
+.detected-skills span { background: #e6ebdf; color: #53645b; border-radius: 4px; padding: 4px 5px; font-size: 7px; }
+.choice-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice-grid button { border: 1px solid #d0d4ce; background: #fff; border-radius: 7px; color: #66716c; padding: 7px 9px; font-size: 9px; cursor: pointer; }
+.choice-grid button.selected { border-color: var(--green); background: #e5f0e7; color: var(--green-dark); font-weight: 800; box-shadow: inset 0 0 0 1px rgba(30,106,76,.12); }
+.country-choice-grid button { flex: 1; min-width: 70px; display: grid; gap: 3px; place-items: center; }
+.country-choice-grid button span { font-size: 18px; }
+.role-choice-grid { align-content: flex-start; }
+.profile-text-field { display: grid; gap: 5px; margin-top: 13px; color: #6e7973; font-size: 8px; font-weight: 700; }
+.profile-text-field input { width: 100%; border: 1px solid #d0d4ce; border-radius: 6px; padding: 8px 9px; background: white; outline: none; font-size: 9px; }
+.profile-text-field input:focus { border-color: var(--green); }
+.sponsor-toggle { margin-top: 11px; display: flex; align-items: center; gap: 7px; color: #516159; font-size: 8px; cursor: pointer; }
+.sponsor-toggle input { position: absolute; opacity: 0; }
+.sponsor-toggle span { width: 27px; height: 15px; border-radius: 10px; background: #c7ccc7; position: relative; transition: background .2s; }
+.sponsor-toggle span::after { content: ""; width: 11px; height: 11px; border-radius: 50%; background: white; position: absolute; left: 2px; top: 2px; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.sponsor-toggle input:checked + span { background: var(--green); }
+.sponsor-toggle input:checked + span::after { transform: translateX(12px); }
+.profile-builder-footer { padding: 16px 29px; display: flex; justify-content: space-between; align-items: center; gap: 20px; background: #f5f3ec; }
+.profile-builder-footer > span { color: #7d8681; font-size: 9px; }
+.profile-builder-footer button { border: 0; border-radius: 8px; background: var(--green); color: white; padding: 11px 17px; font-weight: 800; font-size: 10px; cursor: pointer; }
+.profile-builder-footer button:disabled { opacity: .55; cursor: progress; }
+.profile-error { margin: 0 29px 12px; padding: 9px 11px; background: #fff0e9; border: 1px solid #efc6b6; color: #a14d37; border-radius: 7px; font-size: 9px; }
+
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); margin: 30px 0; background: rgba(251,250,246,.55); }
 .stat-card { padding: 19px 22px; min-height: 112px; border-right: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; align-items: start; }
 .stat-card:last-child { border-right: 0; }
@@ -189,8 +228,10 @@ button { color: inherit; }
 .search-box { display: flex; align-items: center; border: 1px solid var(--line); background: white; padding: 0 10px; border-radius: 7px; }
 .search-box input { width: 190px; border: 0; outline: 0; padding: 9px; color: var(--ink); font-size: 11px; background: transparent; }
 .filter-tools select { border: 1px solid var(--line); background: white; padding: 0 10px; border-radius: 7px; color: var(--muted); font-size: 11px; }
-.demo-note { margin: 0 26px 15px; padding: 9px 11px; background: #f1efe6; color: #737a76; font-size: 10px; border-left: 2px solid #a8afa9; }
-.demo-note span { color: var(--green); font-weight: 900; letter-spacing: .12em; margin-right: 7px; }
+.live-note { margin: 0 26px 15px; padding: 9px 11px; background: #eaf2e8; color: #64716a; font-size: 10px; border-left: 2px solid var(--green); }
+.live-note.error { background: #fff0e9; color: #914d3c; border-color: var(--orange); }
+.live-note span { color: var(--green); font-weight: 900; letter-spacing: .12em; margin-right: 7px; }
+.live-note.error span { color: #a5503c; }
 
 .job-list { border-top: 1px solid var(--line); }
 .job-card { display: grid; grid-template-columns: 46px minmax(0, 1fr) 270px; gap: 17px; padding: 22px 26px; border-bottom: 1px solid var(--line); transition: background .2s; }
@@ -204,6 +245,7 @@ button { color: inherit; }
 .company-line span { color: #bbc0bd; margin: 0 4px; }
 .job-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .job-tags span { padding: 4px 7px; background: #efeee8; color: #64706b; border-radius: 4px; font-size: 9px; }
+.job-tags select { border: 0; outline: 0; padding: 4px 18px 4px 7px; background: #e4eee6; color: var(--green-dark); border-radius: 4px; font-size: 9px; font-weight: 700; cursor: pointer; }
 .job-sponsor-row { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
 .sponsor-badge { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 4px; font-size: 8px; font-weight: 800; }
 .sponsor-badge.licensed { color: #236342; background: #ddf1e5; border: 1px solid #b9dbc6; }
@@ -261,6 +303,8 @@ button { color: inherit; }
   .job-meta { grid-column: 2; grid-template-columns: 110px 70px 1fr; }
   .ats-results { grid-template-columns: 1fr 1.4fr; }
   .checks-block { grid-column: 1 / 3; border-top: 1px solid rgba(255,255,255,.1); }
+  .profile-builder-grid { grid-template-columns: 1fr 1fr; }
+  .role-profile-step { grid-column: 1 / 3; }
 }
 
 @media (max-width: 720px) {
@@ -280,7 +324,7 @@ button { color: inherit; }
   .filter-tools { width: 100%; }
   .search-box { flex: 1; }
   .search-box input { width: 100%; }
-  .demo-note { margin-left: 15px; margin-right: 15px; }
+  .live-note { margin-left: 15px; margin-right: 15px; }
   .job-card { padding: 18px 15px; grid-template-columns: 37px minmax(0,1fr); gap: 11px; }
   .company-logo { width: 36px; height: 36px; }
   .job-meta { grid-column: 1 / 3; grid-template-columns: 1fr 70px 1fr; }
@@ -304,4 +348,12 @@ button { color: inherit; }
   .sponsor-inline-body form > div { grid-template-columns: 1fr; }
   .sponsor-inline-body input { border-right: 1px solid #bdc5b8; border-radius: 6px 6px 0 0; }
   .sponsor-inline-body form button { min-height: 36px; border-radius: 0 0 6px 6px; }
+  .profile-builder-head { padding: 22px 18px; flex-direction: column; }
+  .profile-builder-head h2 { font-size: 25px; }
+  .profile-builder-grid { grid-template-columns: 1fr; }
+  .role-profile-step { grid-column: auto; }
+  .profile-step { padding: 20px 18px; }
+  .profile-builder-footer { padding: 15px 18px; align-items: stretch; flex-direction: column; }
+  .profile-builder-footer button { width: 100%; }
+  .profile-error { margin-left: 18px; margin-right: 18px; }
 }
