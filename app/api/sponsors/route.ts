@@ -1,5 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
-
 const REGISTER_PAGE =
   "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers";
 const CACHE_MS = 60 * 60 * 1000;
@@ -68,7 +66,6 @@ async function loadSponsorRegister(): Promise<SponsorCache> {
 
   const pageResponse = await fetch(REGISTER_PAGE, {
     headers: { "User-Agent": "Offer Radar sponsorship checker" },
-    cf: { cacheTtl: 1800, cacheEverything: true },
   });
   if (!pageResponse.ok) throw new Error("Unable to load GOV.UK register page");
   const pageHtml = await pageResponse.text();
@@ -80,7 +77,6 @@ async function loadSponsorRegister(): Promise<SponsorCache> {
   const csvUrl = csvMatch[0].replace(/&amp;/g, "&");
   const csvResponse = await fetch(csvUrl, {
     headers: { "User-Agent": "Offer Radar sponsorship checker" },
-    cf: { cacheTtl: 1800, cacheEverything: true },
   });
   if (!csvResponse.ok) throw new Error("Unable to load sponsor CSV");
   const csv = await csvResponse.text();
@@ -125,15 +121,15 @@ function findCompany(records: SponsorRecord[], query: string) {
     .slice(0, 12);
 }
 
-export async function GET(request: NextRequest) {
-  const queries = (request.nextUrl.searchParams.get("companies") ?? "")
+export async function GET(request: Request) {
+  const queries = (new URL(request.url).searchParams.get("companies") ?? "")
     .split("|")
     .map((query) => query.trim())
     .filter(Boolean)
     .slice(0, 20);
 
   if (!queries.length) {
-    return NextResponse.json({ error: "Provide at least one employer name." }, { status: 400 });
+    return Response.json({ error: "Provide at least one employer name." }, { status: 400 });
   }
 
   try {
@@ -151,7 +147,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(
+    return Response.json(
       {
         sourcePage: REGISTER_PAGE,
         sourceCsv: register.csvUrl,
@@ -164,7 +160,7 @@ export async function GET(request: NextRequest) {
       { headers: { "Cache-Control": "public, max-age=900, s-maxage=1800" } },
     );
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "The official sponsor register is temporarily unavailable." },
       { status: 503 },
     );

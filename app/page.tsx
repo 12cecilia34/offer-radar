@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, DragEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
 
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
@@ -437,6 +437,40 @@ function resumeStorageKey(language: "中文" | "英文") {
   return `offer-radar-resume-${language === "中文" ? "zh" : "en"}`;
 }
 
+const profileStorageKey = "offer-radar-profile";
+const jobStatesStorageKey = "offer-radar-job-states";
+const defaultApiBaseUrl = "https://offer-radar-api.uceijk2.workers.dev";
+
+type StoredJobState = { saved: boolean; status: Status };
+
+function apiUrl(path: string) {
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim();
+  const base = (configured || defaultApiBaseUrl).replace(/\/$/, "");
+  return `${base}${path}`;
+}
+
+function readJobStates(): Record<string, StoredJobState> {
+  try {
+    return JSON.parse(window.localStorage.getItem(jobStatesStorageKey) ?? "{}") as Record<string, StoredJobState>;
+  } catch {
+    return {};
+  }
+}
+
+function saveJobState(jobId: string, patch: Partial<StoredJobState>) {
+  try {
+    const states = readJobStates();
+    states[jobId] = {
+      saved: states[jobId]?.saved ?? false,
+      status: states[jobId]?.status ?? "待申请",
+      ...patch,
+    };
+    window.localStorage.setItem(jobStatesStorageKey, JSON.stringify(states));
+  } catch {
+    // The current session still works when browser storage is unavailable.
+  }
+}
+
 function uniqueTerms(values: string[]) {
   return [...new Set(values.map((value) => value.trim().toLowerCase()).filter((value) => value.length > 1))];
 }
@@ -605,21 +639,21 @@ export default function Home() {
     }
     const timer = window.setTimeout(() => setClientId(id), 0);
 
-    async function restoreProfile() {
+    function restoreProfile() {
       try {
         if (window.localStorage.getItem("offer-radar-profile-disabled") === "1") return;
-        const response = await fetch(`/api/profile?clientId=${encodeURIComponent(id!)}`);
-        const data = (await response.json()) as { profile?: SearchProfile | null };
-        if (!data.profile) return;
-        setSelectedCountries(data.profile.countries);
-        setSelectedRoles(data.profile.roles);
-        setPreferredLocations(data.profile.locations);
-        setNeedsSponsor(data.profile.needsSponsor);
-        setResumeSkills(data.profile.resumeSkills);
-        setResumeLanguage(data.profile.resumeLanguage ?? "英文");
-        setCareerStage(data.profile.careerStage ?? "Graduate / Entry Level");
+        const storedProfile = window.localStorage.getItem(profileStorageKey);
+        if (!storedProfile) return;
+        const profile = JSON.parse(storedProfile) as SearchProfile;
+        setSelectedCountries(profile.countries);
+        setSelectedRoles(profile.roles);
+        setPreferredLocations(profile.locations);
+        setNeedsSponsor(profile.needsSponsor);
+        setResumeSkills(profile.resumeSkills);
+        setResumeLanguage(profile.resumeLanguage ?? "英文");
+        setCareerStage(profile.careerStage ?? "Graduate / Entry Level");
         try {
-          const cachedResume = window.localStorage.getItem(resumeStorageKey(data.profile.resumeLanguage ?? "英文"));
+          const cachedResume = window.localStorage.getItem(resumeStorageKey(profile.resumeLanguage ?? "英文"));
           if (cachedResume) {
             const parsed = JSON.parse(cachedResume) as { name?: string; text?: string };
             if (parsed.text && parsed.text.length >= 80) {
@@ -637,7 +671,7 @@ export default function Home() {
         // A new visitor can still complete the profile if persistence is temporarily unavailable.
       }
     }
-    void restoreProfile();
+    restoreProfile();
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -668,7 +702,7 @@ export default function Home() {
     if (!companies.length) {
       return;
     }
-    fetch(`/api/sponsors?companies=${encodeURIComponent(companies.join("|"))}`)
+    fetch(apiUrl(`/api/sponsors?companies=${encodeURIComponent(companies.join("|"))}`))
       .then((response) => response.json() as Promise<SponsorApiResponse>)
       .then((data) => {
         if (data.error) throw new Error(data.error);
@@ -707,11 +741,8 @@ export default function Home() {
     setRadarLoading(true);
     setRadarError("");
     try {
-      const [jobsResponse, statesResponse] = await Promise.all([
-        fetch(`/api/jobs?countries=${encodeURIComponent(countries.join(","))}`),
-        fetch(`/api/job-state?clientId=${encodeURIComponent(clientId)}`),
-      ]);
-      if (!jobsResponse.ok || !statesResponse.ok) throw new Error("radar unavailable");
+      const jobsResponse = await fetch(apiUrl(`/api/jobs?countries=${encodeURIComponent(countries.join(","))}`));
+      if (!jobsResponse.ok) throw new Error("radar unavailable");
       const jobsData = (await jobsResponse.json()) as {
         jobs: Array<{
           id: string; company: string; role: string; country: Country; city: string; track: string;
@@ -719,9 +750,8 @@ export default function Home() {
         }>;
         targetCompanies: number; liveSources: number; discoverySources?: number; syncedAt?: string; sources?: SourceCompany[];
       };
-      const statesData = (await statesResponse.json()) as { states: Array<{ jobId: string; saved: boolean; status: Status }> };
-      const nextStates = Object.fromEntries(statesData.states.map((state) => [state.jobId, { saved: state.saved, status: state.status }]));
-      setSaved(statesData.states.filter((state) => state.saved).map((state) => state.jobId));
+      const nextStates = readJobStates();
+      setSaved(Object.entries(nextStates).filter(([, state]) => state.saved).map(([jobId]) => jobId));
       const resumeSignals = `${resumeText} ${resumeSkills.join(" ")}`;
       const eligibleJobs = jobsData.jobs.filter((job) => graduateEligibility({ role: job.role, requirements: job.description }, careerStage, resumeSignals).eligible);
       setFilteredOutCount(jobsData.jobs.length - eligibleJobs.length);
@@ -757,13 +787,7 @@ export default function Home() {
   function toggleSaved(id: string) {
     const nextSaved = !saved.includes(id);
     setSaved((current) => nextSaved ? [...current, id] : current.filter((item) => item !== id));
-    if (clientId) {
-      void fetch("/api/job-state", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientId, jobId: id, saved: nextSaved }),
-      });
-    }
+    saveJobState(id, { saved: nextSaved });
   }
 
   function openDashboardView(view: DashboardView) {
@@ -793,13 +817,7 @@ export default function Home() {
 
   function changeStatus(id: string, status: Status) {
     setJobs((current) => current.map((job) => job.id === id ? { ...job, status } : job));
-    if (clientId) {
-      void fetch("/api/job-state", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientId, jobId: id, status }),
-      });
-    }
+    saveJobState(id, { status });
   }
 
   async function startScan() {
@@ -859,21 +877,16 @@ export default function Home() {
     setSavingProfile(true);
     setAtsError("");
     try {
-      const response = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          clientId,
-          countries: selectedCountries,
-          roles: selectedRoles,
-          locations: preferredLocations,
-          needsSponsor,
-          resumeSkills,
-          resumeLanguage,
-          careerStage,
-        }),
-      });
-      if (!response.ok) throw new Error("profile unavailable");
+      const profile: SearchProfile = {
+        countries: selectedCountries,
+        roles: selectedRoles,
+        locations: preferredLocations,
+        needsSponsor,
+        resumeSkills,
+        resumeLanguage,
+        careerStage,
+      };
+      window.localStorage.setItem(profileStorageKey, JSON.stringify(profile));
       try {
         window.localStorage.removeItem("offer-radar-profile-disabled");
       } catch {
@@ -932,7 +945,7 @@ export default function Home() {
         text = await file.text();
       } else if (extension === "pdf") {
         const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        pdfjs.GlobalWorkerOptions.workerSrc = `${import.meta.env.BASE_URL}pdf.worker.min.mjs`;
         const data = new Uint8Array(await file.arrayBuffer());
         const pdf = await pdfjs.getDocument({ data }).promise;
         const pages: string[] = [];
@@ -990,15 +1003,11 @@ export default function Home() {
     if (file) void acceptResume(file);
   }
 
-  function openResumePicker(event: KeyboardEvent<HTMLLabelElement>) {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    event.currentTarget.querySelector<HTMLInputElement>('input[type="file"]')?.click();
-  }
-
   function clearResume() {
     try {
       window.localStorage.removeItem(resumeStorageKey(resumeLanguage));
+      window.localStorage.removeItem(profileStorageKey);
+      window.localStorage.removeItem(jobStatesStorageKey);
       window.localStorage.setItem("offer-radar-profile-disabled", "1");
     } catch {
       // Clearing the in-memory copy is still useful when browser storage is unavailable.
@@ -1057,7 +1066,7 @@ export default function Home() {
     setSponsorSearchResult(null);
     try {
       const response = await fetch(
-        `/api/sponsors?companies=${encodeURIComponent(query)}`,
+        apiUrl(`/api/sponsors?companies=${encodeURIComponent(query)}`),
       );
       const data = (await response.json()) as SponsorApiResponse;
       if (!response.ok || data.error) throw new Error(data.error);
@@ -1158,7 +1167,7 @@ export default function Home() {
                     <button type="button" className={resumeLanguage === "中文" ? "selected" : ""} aria-pressed={resumeLanguage === "中文"} onClick={() => changeResumeLanguage("中文")}>中文版</button>
                     <button type="button" className={resumeLanguage === "英文" ? "selected" : ""} aria-pressed={resumeLanguage === "英文"} onClick={() => changeResumeLanguage("英文")}>English CV</button>
                   </div>
-                  <label className={`profile-upload ${resumeText ? "ready" : ""}`} tabIndex={0} onKeyDown={openResumePicker} onDragOver={(event) => event.preventDefault()} onDrop={dropResume}>
+                  <label className={`profile-upload ${resumeText ? "ready" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={dropResume}>
                     <input key={resumeLanguage} type="file" accept=".pdf,.docx,.txt" onChange={readResume} />
                     <span>{parsingResume ? "正在本地解析…" : resumeText ? `✓ 已识别${resumeLanguage}简历` : `⇧ 拖拽或选择${resumeLanguage}简历`}</span>
                     <small>{resumeName || "PDF、DOCX、TXT · 最大 10MB · 不上传原文件"}</small>

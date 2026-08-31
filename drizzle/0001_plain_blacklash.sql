@@ -1,1 +1,0 @@
-CREATE INDEX `idx_jobs_country_posted_at` ON `jobs` (`country`,`posted_at`);

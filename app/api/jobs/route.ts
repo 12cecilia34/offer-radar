@@ -1,6 +1,3 @@
-import { desc, eq, inArray } from "drizzle-orm";
-import { getDb } from "../../../db";
-import { jobs, syncRuns } from "../../../db/schema";
 import { jobSources, liveSourceCount, type JobSource, type TargetCountry } from "../../../lib/job-sources";
 
 type FeedJob = {
@@ -18,7 +15,8 @@ type FeedJob = {
   fetchedAt: string;
 };
 
-const syncKey = "live-job-feeds-v3";
+const CACHE_MS = 24 * 60 * 60 * 1000;
+let jobCache: { jobs: FeedJob[]; syncedAt: string; failedSources: number } | null = null;
 
 const roleSignals = [
   "strategy", "operations", "operation", "growth", "product", "commercial", "business analyst",
@@ -258,7 +256,6 @@ async function fetchTencent(source: JobSource, fetchedAt: string): Promise<FeedJ
 }
 
 async function refreshJobs() {
-  const db = getDb();
   const fetchedAt = new Date().toISOString();
   const liveSources = jobSources.filter((source) => source.provider !== "official");
   const settled = await Promise.allSettled(liveSources.map((source) => {
@@ -272,36 +269,29 @@ async function refreshJobs() {
     ...campaignJobs.map((job) => ({ ...job, fetchedAt })),
   ];
 
-  for (const job of freshJobs) {
-    await db.insert(jobs).values(job).onConflictDoUpdate({ target: jobs.id, set: job });
-  }
-
-  await db.insert(syncRuns).values({ sourceKey: syncKey, syncedAt: fetchedAt, jobCount: freshJobs.length }).onConflictDoUpdate({
-    target: syncRuns.sourceKey,
-    set: { syncedAt: fetchedAt, jobCount: freshJobs.length },
-  });
-  return { freshJobs, syncedAt: fetchedAt, failedSources: settled.filter((result) => result.status === "rejected").length };
+  jobCache = {
+    jobs: freshJobs,
+    syncedAt: fetchedAt,
+    failedSources: settled.filter((result) => result.status === "rejected").length,
+  };
+  return jobCache;
 }
 
 export async function GET(request: Request) {
-  const db = getDb();
   const params = new URL(request.url).searchParams;
   const requestedCountries = params.get("countries")?.split(",").filter(Boolean) as TargetCountry[] | undefined;
   const countries = requestedCountries?.length ? requestedCountries : (["中国", "英国", "加拿大"] as TargetCountry[]);
-  const sync = await db.select().from(syncRuns).where(eq(syncRuns.sourceKey, syncKey)).limit(1);
-  const lastSync = sync[0]?.syncedAt ? Date.parse(sync[0].syncedAt) : 0;
-  let syncInfo: { syncedAt?: string; failedSources?: number } = { syncedAt: sync[0]?.syncedAt };
-
-  if (!lastSync || Date.now() - lastSync > 24 * 60 * 60 * 1000) {
-    syncInfo = await refreshJobs();
-  }
-
-  const rows = await db.select().from(jobs).where(inArray(jobs.country, countries)).orderBy(desc(jobs.postedAt)).limit(240);
+  if (!jobCache || Date.now() - Date.parse(jobCache.syncedAt) > CACHE_MS) await refreshJobs();
+  const syncInfo = jobCache!;
+  const rows = syncInfo.jobs
+    .filter((job) => countries.includes(job.country))
+    .sort((a, b) => Date.parse(b.postedAt ?? "") - Date.parse(a.postedAt ?? ""))
+    .slice(0, 240);
   const selectedSources = jobSources.filter((source) => countries.includes(source.country));
   return Response.json({
     jobs: rows,
     syncedAt: syncInfo.syncedAt,
-    failedSources: syncInfo.failedSources ?? 0,
+    failedSources: syncInfo.failedSources,
     targetCompanies: selectedSources.length + campaignJobs.filter((job) => countries.includes(job.country)).filter((job) => !selectedSources.some((source) => source.company === job.company)).length,
     liveSources: selectedSources.filter((source) => source.provider !== "official").length,
     discoverySources: campaignJobs.filter((job) => countries.includes(job.country)).length,
