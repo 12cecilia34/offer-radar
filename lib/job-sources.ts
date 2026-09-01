@@ -133,6 +133,14 @@ export const jobSources: JobSource[] = [
   { company: "Deutsche Bank", country: "英国", careersUrl: "https://careers.db.com/students-graduates/", provider: "official", sponsorQuery: "Deutsche Bank AG" },
   { company: "Zurich Insurance", country: "英国", careersUrl: "https://www.zurich.co.uk/careers/graduate-schemes", provider: "official", sponsorQuery: "Zurich Insurance Company Ltd" },
   { company: "Baillie Gifford", country: "英国", careersUrl: "https://www.bailliegifford.com/en/uk/individual-investors/careers/early-careers/graduate-programmes/", provider: "official", sponsorQuery: "Baillie Gifford & Co" },
+  { company: "BT Group", country: "英国", careersUrl: "https://jobs.bt.com/content/Graduates-BT-Group/", provider: "official", sponsorQuery: "British Telecommunications plc" },
+  { company: "UK Parliament", country: "英国", careersUrl: "https://www.parliament.uk/about/careers/graduate-programme/", provider: "official" },
+  { company: "JLR", country: "英国", careersUrl: "https://careers.jaguarlandrover.com/early-careers/graduates", provider: "official", sponsorQuery: "Jaguar Land Rover Limited" },
+  { company: "Unilever UK", country: "英国", careersUrl: "https://careers.unilever.com/en/united-kingdom-and-ireland", provider: "official", sponsorQuery: "Unilever UK Limited" },
+  { company: "McLaren Racing", country: "英国", careersUrl: "https://racingcareers.mclaren.com/", provider: "official", sponsorQuery: "McLaren Racing Limited" },
+  { company: "Castleton Commodities International", country: "英国", careersUrl: "https://www.cci.com/careers/", provider: "official", sponsorQuery: "Castleton Commodities UK Limited" },
+  { company: "Marshall Wace", country: "英国", careersUrl: "https://www.mwam.com/join-us/early-careers/", provider: "official", sponsorQuery: "Marshall Wace LLP" },
+  { company: "UK Civil Service", country: "英国", careersUrl: "https://www.civil-service-careers.gov.uk/fast-stream/", provider: "official" },
 
   { company: "StackAdapt", country: "加拿大", careersUrl: "https://www.stackadapt.com/careers", provider: "greenhouse", token: "stackadapt" },
   { company: "Hootsuite", country: "加拿大", careersUrl: "https://careers.hootsuite.com/", provider: "greenhouse", token: "hootsuite" },
@@ -171,6 +179,7 @@ export const jobSources: JobSource[] = [
   { company: "Deloitte Canada", country: "加拿大", careersUrl: "https://careers.deloitte.ca/", provider: "official" },
   { company: "Rogers Communications", country: "加拿大", careersUrl: "https://jobs.rogers.com/", provider: "official" },
   { company: "Trafigura Canada", country: "加拿大", careersUrl: "https://trafigura.wd3.myworkdayjobs.com/TrafiguraCareerSite", provider: "official" },
+  { company: "Capital One Canada", country: "加拿大", careersUrl: "https://www.capitalonecareers.ca/search-jobs?acm=ALL&alrpm=ALL&ascf=%5B%7B%22key%22%3A%22custom_fields.gradfacet%22%2C%22value%22%3A%22Students+%26+Grads%22%7D%5D", provider: "official" },
 ];
 
 export const liveSourceCount = jobSources.filter((source) => source.provider !== "official").length;

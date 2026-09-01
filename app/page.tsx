@@ -854,7 +854,6 @@ export default function Home() {
       });
   }, [activeView, country, graduateOnly, jobs, query, saved, sort]);
   const visibleGraduatePrograms = useMemo(() => graduatePrograms
-    .filter((program) => selectedCountries.includes(program.country))
     .filter((program) => graduateCountry === "全部" || program.country === graduateCountry)
     .sort((a, b) => {
       const aTiming = graduateProgramTiming(a);
@@ -863,7 +862,7 @@ export default function Home() {
       const aDate = a.deadline ?? a.opensOn ?? "9999-12-31";
       const bDate = b.deadline ?? b.opensOn ?? "9999-12-31";
       return aDate.localeCompare(bDate);
-    }), [graduateCountry, selectedCountries]);
+    }), [graduateCountry]);
   const graduateOpenCount = useMemo(() => visibleGraduatePrograms.filter((program) => {
     const timing = graduateProgramTiming(program);
     return timing.tone === "open" || timing.tone === "urgent";
@@ -1652,7 +1651,7 @@ export default function Home() {
               {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `${careerStage === "Internship" ? "Intern" : careerStage === "Graduate + Internship" ? "Graduate + Intern" : "Graduate"} 模式已过滤 ${filteredOutCount} 个职级或语言条件不符岗位；已识别 ${knownDeadlineCount}/${jobs.length} 个截止日期。`}
             </div>
 
-            {activeView === "radar" && selectedCountries.some((item) => item === "英国" || item === "加拿大") && (
+            {activeView === "radar" && (
               <section className="graduate-watch" aria-labelledby="graduate-watch-title">
                 <header className="graduate-watch-head">
                   <div>
@@ -1664,7 +1663,7 @@ export default function Home() {
                 </header>
                 <div className="graduate-watch-toolbar">
                   {(["全部", "英国", "加拿大"] as const).map((item) => (
-                    <button key={item} className={graduateCountry === item ? "selected" : ""} onClick={() => setGraduateCountry(item)}>{item === "英国" ? "🇬🇧 英国" : item === "加拿大" ? "🇨🇦 加拿大" : "全部项目"}</button>
+                    <button key={item} className={graduateCountry === item ? "selected" : ""} onClick={() => setGraduateCountry(item)}>{item === "英国" ? `🇬🇧 英国 ${graduatePrograms.filter((program) => program.country === "英国").length}` : item === "加拿大" ? `🇨🇦 加拿大 ${graduatePrograms.filter((program) => program.country === "加拿大").length}` : `全部 ${graduatePrograms.length}`}</button>
                   ))}
                   <span>{visibleGraduatePrograms.length} 个官方项目</span>
                 </div>
