@@ -1410,7 +1410,12 @@ export default function Home() {
                 <h2 tabIndex={-1}>把简历变成一张可执行的投递公司地图。</h2>
                 <p>不只重复常见大厂：先用大厂、投资方和目标职能做锚点，再沿投资组合、竞品和产业链扩展，并单独核验校招或实习证据。</p>
               </div>
-              <div className="map-verified"><i />联网核验至 {companyMapMethod.verifiedAt}</div>
+              <div className="map-heading-meta">
+                <div className="map-verified"><i />联网核验至 {companyMapMethod.verifiedAt}</div>
+                {companyMapMethod.discoveryFeeds.map((feed) => (
+                  <a key={feed.url} href={feed.url} target="_blank" rel="noreferrer" title={feed.note}>＋ 榜单发现源：{feed.label} ↗</a>
+                ))}
+              </div>
             </div>
 
             <div className="map-profile-summary">
@@ -1492,7 +1497,7 @@ export default function Home() {
 
             <div className="map-section-title longlist-title">
               <div><span className="eyebrow">COMPANY LONGLIST</span><h3>完整公司长名单</h3></div>
-              <small>{visibleCompanyMap.length} 家 · 每家公司保留发现路径、证据和动作</small>
+              <small>{visibleCompanyMap.length} 家 · 榜单用于发现，招聘结论回到官方页面核验</small>
             </div>
             <div className="map-longlist-wrap">
               <table className="map-longlist">

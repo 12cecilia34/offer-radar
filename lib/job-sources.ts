@@ -6,7 +6,7 @@ export type JobSource = {
   country: TargetCountry;
   careersUrl: string;
   provider: "greenhouse" | "lever" | "ashby" | "tencent" | "official";
-  group?: "在华外企";
+  group?: "在华外企" | "智能制造与新能源" | "专业服务";
   token?: string;
   sponsorQuery?: string;
 };
@@ -42,6 +42,31 @@ export const jobSources: JobSource[] = [
   { company: "Keep", country: "中国", careersUrl: "https://keep.jobs.feishu.cn/", provider: "official" },
   { company: "Soul", country: "中国", careersUrl: "https://soul.jobs.feishu.cn/", provider: "official" },
   { company: "Perfect World", displayName: "完美世界 Perfect World", country: "中国", careersUrl: "https://recruit.wanmei.com/", provider: "official" },
+  { company: "Taobao Flash", displayName: "淘宝闪购 Taobao Flash", country: "中国", careersUrl: "https://talent.ele.me/campus/home?lang=zh", provider: "official" },
+  { company: "Hema", displayName: "盒马 Hema / Freshippo", country: "中国", careersUrl: "https://hire.freshippo.com/campus/home?lang=zh", provider: "official" },
+  { company: "Fliggy", displayName: "飞猪 Fliggy", country: "中国", careersUrl: "https://talent.fliggy.com/", provider: "official" },
+  { company: "Xunlei", displayName: "迅雷 Xunlei", country: "中国", careersUrl: "https://hr.xunlei.com/", provider: "official" },
+  { company: "Papergames", displayName: "叠纸游戏 Papergames", country: "中国", careersUrl: "https://career.papegames.com/campus/position/list", provider: "official" },
+  { company: "miHoYo", displayName: "米哈游 miHoYo", country: "中国", careersUrl: "https://jobs.mihoyo.com/", provider: "official" },
+  { company: "Qunar", displayName: "去哪儿旅行 Qunar", country: "中国", careersUrl: "https://campus.qunar.com/", provider: "official" },
+
+  // 新能源、智能制造与硬件科技热门雇主。
+  { company: "CATL", displayName: "宁德时代 CATL", country: "中国", careersUrl: "https://talent.catl.com/", provider: "official", group: "智能制造与新能源" },
+  { company: "NIO", displayName: "蔚来 NIO", country: "中国", careersUrl: "https://nio.jobs.feishu.cn/", provider: "official", group: "智能制造与新能源" },
+  { company: "Li Auto", displayName: "理想汽车 Li Auto", country: "中国", careersUrl: "https://www.lixiang.com/careers", provider: "official", group: "智能制造与新能源" },
+  { company: "XPeng", displayName: "小鹏汽车 XPeng", country: "中国", careersUrl: "https://xiaopeng.jobs.feishu.cn/", provider: "official", group: "智能制造与新能源" },
+  { company: "BYD", displayName: "比亚迪 BYD", country: "中国", careersUrl: "https://job.byd.com/", provider: "official", group: "智能制造与新能源" },
+  { company: "DJI", displayName: "大疆 DJI", country: "中国", careersUrl: "https://apply.careers.dji.com/", provider: "official", group: "智能制造与新能源" },
+  { company: "Hikvision", displayName: "海康威视 Hikvision", country: "中国", careersUrl: "https://campushr.hikvision.com/", provider: "official", group: "智能制造与新能源" },
+  { company: "iFlytek", displayName: "科大讯飞 iFlytek", country: "中国", careersUrl: "https://iflytek.zhiye.com/", provider: "official", group: "智能制造与新能源" },
+  { company: "Schneider Electric", displayName: "施耐德电气 Schneider Electric", country: "中国", careersUrl: "https://www.se.com/cn/zh/about-us/careers/", provider: "official", group: "在华外企" },
+  { company: "Texas Instruments", displayName: "德州仪器 Texas Instruments", country: "中国", careersUrl: "https://careers.ti.com/", provider: "official", group: "在华外企" },
+
+  // 中国大陆专业服务与咨询校招入口。
+  { company: "PwC China", displayName: "普华永道 PwC 中国", country: "中国", careersUrl: "https://www.pwccn.com/zh/careers/students.html", provider: "official", group: "专业服务" },
+  { company: "Deloitte China", displayName: "德勤 Deloitte 中国", country: "中国", careersUrl: "https://www.deloitte.com/cn/zh/cn-careers/students.html", provider: "official", group: "专业服务" },
+  { company: "KPMG China", displayName: "毕马威 KPMG 中国", country: "中国", careersUrl: "https://kpmg.com/cn/zh/careers/campus.html", provider: "official", group: "专业服务" },
+  { company: "EY China", displayName: "安永 EY 中国", country: "中国", careersUrl: "https://www.ey.com/zh_cn/careers/student-programs-in-chinese-mainland", provider: "official", group: "专业服务" },
 
   // 在中国大陆设有团队或长期招聘入口的热门外企。
   { company: "宝洁 P&G", country: "中国", careersUrl: "https://www.pgcareers.com/cn/zh", provider: "official", group: "在华外企" },

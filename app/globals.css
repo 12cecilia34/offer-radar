@@ -347,6 +347,9 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .company-map-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 30px 31px 24px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #f8fbf4 0%, #f4f1e9 68%, #edf2e8 100%); }
 .company-map-heading h2 { max-width: 720px; margin: 7px 0 9px; font: 500 31px/1.12 Georgia, "Songti SC", serif; }
 .company-map-heading p { max-width: 760px; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.map-heading-meta { flex: 0 0 auto; display: grid; justify-items: end; gap: 8px; }
+.map-heading-meta > a { color: #426c57; font-size: 8px; font-weight: 800; text-decoration: none; }
+.map-heading-meta > a:hover { text-decoration: underline; }
 .map-verified { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #cbd9ca; border-radius: 99px; color: #315f48; background: rgba(255,255,255,.62); font-size: 8px; font-weight: 800; letter-spacing: .04em; }
 .map-verified i { width: 6px; height: 6px; border-radius: 50%; background: #4d9a68; box-shadow: 0 0 0 3px rgba(77,154,104,.13); }
 .map-profile-summary { display: grid; grid-template-columns: 1fr 1fr 1.35fr; border-bottom: 1px solid var(--line); background: #fff; }
@@ -471,6 +474,7 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .source-company-grid { grid-template-columns: 1fr; }
   .company-map-heading { padding: 23px 18px; flex-direction: column; }
   .company-map-heading h2 { font-size: 25px; }
+  .map-heading-meta { justify-items: start; }
   .map-profile-summary { grid-template-columns: 1fr; }
   .map-profile-summary > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .map-profile-summary > div:last-child { border-bottom: 0; }
