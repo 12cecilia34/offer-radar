@@ -258,6 +258,8 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .country-tabs button { border: 0; background: transparent; padding: 8px 12px; border-radius: 6px; color: #69746f; font-size: 11px; cursor: pointer; }
 .country-tabs button.selected { background: white; color: var(--ink); box-shadow: 0 1px 5px rgba(0,0,0,.08); font-weight: 700; }
 .filter-tools { display: flex; gap: 8px; }
+.graduate-only-button { border: 1px solid var(--line); border-radius: 7px; padding: 0 11px; background: #fff; color: #66716c; font-size: 9px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.graduate-only-button.selected { border-color: var(--green); color: var(--green); background: #e5eee5; }
 .search-box { display: flex; align-items: center; border: 1px solid var(--line); background: white; padding: 0 10px; border-radius: 7px; }
 .search-box input { width: 190px; border: 0; outline: 0; padding: 9px; color: var(--ink); font-size: 11px; background: transparent; }
 .filter-tools select { border: 1px solid var(--line); background: white; padding: 0 10px; border-radius: 7px; color: var(--muted); font-size: 11px; }
@@ -265,6 +267,36 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .live-note.error { background: #fff0e9; color: #914d3c; border-color: var(--orange); }
 .live-note span { color: var(--green); font-weight: 900; letter-spacing: .12em; margin-right: 7px; }
 .live-note.error span { color: #a5503c; }
+
+.graduate-watch { margin: 0 26px 18px; border: 1px solid #cdd8cb; border-radius: 10px; overflow: hidden; background: #f8faf5; }
+.graduate-watch-head { display: flex; align-items: center; justify-content: space-between; gap: 25px; padding: 18px 20px 14px; background: linear-gradient(120deg, #e5eee0 0%, #f7f8ef 72%); }
+.graduate-watch-head h3 { margin: 5px 0 6px; font: 500 19px Georgia, "Songti SC", serif; }
+.graduate-watch-head p { margin: 0; max-width: 630px; color: #68736d; font-size: 9px; line-height: 1.55; }
+.graduate-watch-summary { min-width: 145px; display: grid; grid-template-columns: auto 1fr; align-items: end; column-gap: 7px; }
+.graduate-watch-summary strong { grid-row: 1 / 3; color: var(--green); font: 600 32px Georgia, serif; }
+.graduate-watch-summary span { color: #53615a; font-size: 8px; font-weight: 800; }
+.graduate-watch-summary small { color: #88918c; font-size: 7px; }
+.graduate-watch-toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-top: 1px solid rgba(69, 96, 79, .12); border-bottom: 1px solid rgba(69, 96, 79, .12); }
+.graduate-watch-toolbar button { border: 1px solid #d5dbd3; border-radius: 999px; padding: 5px 9px; background: #fff; color: #6d7772; font-size: 8px; cursor: pointer; }
+.graduate-watch-toolbar button.selected { border-color: var(--green); color: var(--green); background: #e5eee5; font-weight: 800; }
+.graduate-watch-toolbar > span { margin-left: auto; color: #858e89; font-size: 8px; }
+.graduate-program-track { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(270px, 31%); gap: 10px; padding: 14px 20px 17px; overflow-x: auto; scroll-snap-type: x proximity; }
+.graduate-program-card { min-height: 255px; display: flex; flex-direction: column; padding: 14px; border: 1px solid #dce1d9; border-radius: 8px; background: #fff; scroll-snap-align: start; }
+.graduate-program-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.graduate-program-status span { padding: 4px 7px; border-radius: 4px; font-size: 7px; font-weight: 900; letter-spacing: .04em; }
+.graduate-program-status span.open { color: #216440; background: #def1e4; }
+.graduate-program-status span.urgent { color: #9b3f2f; background: #ffe5dc; }
+.graduate-program-status span.soon { color: #745614; background: #f7edc9; }
+.graduate-program-status span.watch { color: #66716c; background: #eceeea; }
+.graduate-program-status small { color: #919995; font-size: 7px; }
+.graduate-program-card h4 { margin: 12px 0 5px; font-size: 13px; line-height: 1.3; }
+.graduate-program-company { margin: 0 0 10px; color: #75807a; font-size: 8px; }
+.graduate-program-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.graduate-program-tags span { padding: 4px 6px; border-radius: 4px; background: #f0f1ec; color: #6c7771; font-size: 7px; }
+.graduate-program-evidence, .graduate-program-auth { margin: 10px 0 0; color: #6b7670; font-size: 8px; line-height: 1.45; }
+.graduate-program-auth { margin-top: 6px; }
+.graduate-program-evidence b, .graduate-program-auth b { color: #365744; margin-right: 6px; }
+.graduate-program-card > a { margin-top: auto; padding-top: 12px; color: var(--green); font-size: 9px; font-weight: 800; text-decoration: none; }
 
 .job-list { border-top: 1px solid var(--line); }
 .job-card { display: grid; grid-template-columns: 46px minmax(0, 1fr) 270px; gap: 17px; padding: 22px 26px; border-bottom: 1px solid var(--line); transition: background .2s; }
@@ -482,9 +514,19 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .country-tabs { overflow-x: auto; }
   .country-tabs button { flex: 1; white-space: nowrap; }
   .filter-tools { width: 100%; }
+  .filter-tools { flex-wrap: wrap; }
+  .graduate-only-button { min-height: 36px; order: 3; width: 100%; }
   .search-box { flex: 1; }
   .search-box input { width: 100%; }
   .live-note { margin-left: 15px; margin-right: 15px; }
+  .graduate-watch { margin-left: 15px; margin-right: 15px; }
+  .graduate-watch-head { align-items: flex-start; flex-direction: column; gap: 12px; padding: 16px; }
+  .graduate-watch-head h3 { font-size: 17px; }
+  .graduate-watch-summary { min-width: 0; }
+  .graduate-watch-toolbar { padding-left: 15px; padding-right: 15px; overflow-x: auto; }
+  .graduate-watch-toolbar button { white-space: nowrap; }
+  .graduate-watch-toolbar > span { white-space: nowrap; }
+  .graduate-program-track { grid-auto-columns: minmax(255px, 84vw); padding-left: 15px; padding-right: 15px; }
   .job-card { padding: 18px 15px; grid-template-columns: 37px minmax(0,1fr); gap: 11px; }
   .company-logo { width: 36px; height: 36px; }
   .job-meta { grid-column: 1 / 3; grid-template-columns: 1fr 70px 1fr; }

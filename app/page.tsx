@@ -2,6 +2,7 @@
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { companyMapMethod, rankCompanyMap, type DiscoveryPath, type EvidenceStrength, type RankedCompanyMapEntry } from "../lib/company-map";
+import { graduatePrograms, type GraduateProgram } from "../lib/graduate-programs";
 import { jobSources } from "../lib/job-sources";
 
 type Country = "中国" | "英国" | "加拿大";
@@ -287,6 +288,31 @@ function deadlineTone(days: number) {
   if (days <= 7) return "urgent";
   if (days <= 14) return "soon";
   return "safe";
+}
+
+function dateDistance(isoDate: string) {
+  const target = new Date(`${isoDate}T23:59:59`);
+  return Math.ceil((target.getTime() - Date.now()) / 86_400_000);
+}
+
+function openingDateDistance(isoDate: string) {
+  const target = new Date(`${isoDate}T00:00:00`);
+  return Math.ceil((target.getTime() - Date.now()) / 86_400_000);
+}
+
+function graduateProgramTiming(program: GraduateProgram) {
+  if (program.status === "open") {
+    if (!program.deadline) return { label: "正在开放", detail: "滚动或未公布截止日", tone: "open" as const, rank: 1 };
+    const days = dateDistance(program.deadline);
+    if (days < 0) return { label: "待重新核验", detail: `官网截止日 ${program.deadline.slice(5).replace("-", "/")}`, tone: "watch" as const, rank: 4 };
+    return { label: days <= 7 ? "即将截止" : "正在开放", detail: `${days} 天后截止`, tone: days <= 7 ? "urgent" as const : "open" as const, rank: days <= 7 ? 0 : 1 };
+  }
+  if (program.status === "opening_soon" && program.opensOn) {
+    const days = openingDateDistance(program.opensOn);
+    if (days <= 0) return { label: "开放窗口已到", detail: "立即回官网核验", tone: "urgent" as const, rank: 0 };
+    return { label: "即将开放", detail: days === 0 ? "今天开放" : `${days} 天后开放`, tone: "soon" as const, rank: 2 };
+  }
+  return { label: "等待开放", detail: "已接入官方项目页", tone: "watch" as const, rank: 3 };
 }
 
 const englishMonths: Record<string, number> = {
@@ -642,6 +668,8 @@ export default function Home() {
   const [country, setCountry] = useState<"全部" | Country>("全部");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"match" | "deadline">("match");
+  const [graduateOnly, setGraduateOnly] = useState(false);
+  const [graduateCountry, setGraduateCountry] = useState<"全部" | "英国" | "加拿大">("全部");
   const [saved, setSaved] = useState<string[]>([]);
   const [clientId, setClientId] = useState("");
   const [activeView, setActiveView] = useState<DashboardView>("radar");
@@ -809,6 +837,7 @@ export default function Home() {
     const normalized = query.trim().toLowerCase();
     return jobs
       .filter((job) => country === "全部" || job.country === country)
+      .filter((job) => !graduateOnly || graduateSignalPattern.test(job.role))
       .filter((job) => activeView !== "saved" || saved.includes(job.id))
       .filter((job) => activeView !== "applications" || job.status !== "待申请")
       .filter((job) =>
@@ -823,7 +852,22 @@ export default function Home() {
         const bDeadline = b.daysLeft >= 0 && b.daysLeft < 9999 ? b.daysLeft : Number.MAX_SAFE_INTEGER;
         return aDeadline - bDeadline || b.match - a.match;
       });
-  }, [activeView, country, jobs, query, saved, sort]);
+  }, [activeView, country, graduateOnly, jobs, query, saved, sort]);
+  const visibleGraduatePrograms = useMemo(() => graduatePrograms
+    .filter((program) => selectedCountries.includes(program.country))
+    .filter((program) => graduateCountry === "全部" || program.country === graduateCountry)
+    .sort((a, b) => {
+      const aTiming = graduateProgramTiming(a);
+      const bTiming = graduateProgramTiming(b);
+      if (aTiming.rank !== bTiming.rank) return aTiming.rank - bTiming.rank;
+      const aDate = a.deadline ?? a.opensOn ?? "9999-12-31";
+      const bDate = b.deadline ?? b.opensOn ?? "9999-12-31";
+      return aDate.localeCompare(bDate);
+    }), [graduateCountry, selectedCountries]);
+  const graduateOpenCount = useMemo(() => visibleGraduatePrograms.filter((program) => {
+    const timing = graduateProgramTiming(program);
+    return timing.tone === "open" || timing.tone === "urgent";
+  }).length, [visibleGraduatePrograms]);
   const knownDeadlineCount = useMemo(() => jobs.filter((job) => job.daysLeft < 9999).length, [jobs]);
   const hasActiveRadar = profileReady && Boolean(resumeText || resumeSkills.length);
 
@@ -1591,6 +1635,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="filter-tools">
+                <button className={`graduate-only-button ${graduateOnly ? "selected" : ""}`} onClick={() => setGraduateOnly((current) => !current)} aria-pressed={graduateOnly}>◎ Graduate Programme</button>
                 <label className="search-box">
                   <span>⌕</span>
                   <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索公司、岗位或方向" />
@@ -1606,6 +1651,41 @@ export default function Home() {
               <span>{radarLoading ? "SYNC" : radarError ? "RETRY" : "LIVE"}</span>
               {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `${careerStage === "Internship" ? "Intern" : careerStage === "Graduate + Internship" ? "Graduate + Intern" : "Graduate"} 模式已过滤 ${filteredOutCount} 个职级或语言条件不符岗位；已识别 ${knownDeadlineCount}/${jobs.length} 个截止日期。`}
             </div>
+
+            {activeView === "radar" && selectedCountries.some((item) => item === "英国" || item === "加拿大") && (
+              <section className="graduate-watch" aria-labelledby="graduate-watch-title">
+                <header className="graduate-watch-head">
+                  <div>
+                    <span className="eyebrow">2027 GRADUATE PROGRAMME WATCH</span>
+                    <h3 id="graduate-watch-title">UK / 加拿大 Graduate Program 高峰期追踪</h3>
+                    <p>优先显示已开放、即将截止和本月即将开放的官方项目；过期日期会自动降级为“待重新核验”。</p>
+                  </div>
+                  <div className="graduate-watch-summary"><strong>{graduateOpenCount}</strong><span>个开放或需立即核验</span><small>官网核验至 2026/09/01</small></div>
+                </header>
+                <div className="graduate-watch-toolbar">
+                  {(["全部", "英国", "加拿大"] as const).map((item) => (
+                    <button key={item} className={graduateCountry === item ? "selected" : ""} onClick={() => setGraduateCountry(item)}>{item === "英国" ? "🇬🇧 英国" : item === "加拿大" ? "🇨🇦 加拿大" : "全部项目"}</button>
+                  ))}
+                  <span>{visibleGraduatePrograms.length} 个官方项目</span>
+                </div>
+                <div className="graduate-program-track">
+                  {visibleGraduatePrograms.map((program) => {
+                    const timing = graduateProgramTiming(program);
+                    return (
+                      <article className="graduate-program-card" key={program.id}>
+                        <div className="graduate-program-status"><span className={timing.tone}>{timing.label}</span><small>{timing.detail}</small></div>
+                        <h4>{program.title}</h4>
+                        <p className="graduate-program-company">{countryMeta[program.country].flag} {program.company} · {program.location}</p>
+                        <div className="graduate-program-tags"><span>{program.cycle}</span><span>{program.fit}</span></div>
+                        <p className="graduate-program-evidence"><b>官方证据</b>{program.evidence}</p>
+                        <p className="graduate-program-auth"><b>工作权利</b>{program.workAuthorization}</p>
+                        <a href={program.url} target="_blank" rel="noreferrer">打开官方项目页 ↗</a>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {country === "英国" && (
               <section className="sponsor-inline" id="sponsor-checker">

@@ -126,6 +126,13 @@ export const jobSources: JobSource[] = [
   { company: "Mastercard", country: "英国", careersUrl: "https://careers.mastercard.com/", provider: "official", sponsorQuery: "Mastercard UK Management Services Limited" },
   { company: "Fidelity International", country: "英国", careersUrl: "https://careers.fidelityinternational.com/", provider: "official", sponsorQuery: "FIL Investment Services (UK) Limited" },
   { company: "Schroders", country: "英国", careersUrl: "https://www.schroders.com/en/global/careers/", provider: "official", sponsorQuery: "Schroder Investment Management Limited" },
+  { company: "PwC UK", country: "英国", careersUrl: "https://www.pwc.co.uk/careers/early-careers/graduate.html", provider: "official", sponsorQuery: "PricewaterhouseCoopers LLP" },
+  { company: "EY UK", country: "英国", careersUrl: "https://www.ey.com/en_uk/careers/students/graduates", provider: "official", sponsorQuery: "Ernst & Young LLP" },
+  { company: "KPMG UK", country: "英国", careersUrl: "https://www.kpmgcareers.co.uk/graduate/", provider: "official", sponsorQuery: "KPMG LLP" },
+  { company: "Shell", country: "英国", careersUrl: "https://www.shell.co.uk/about-us/careers/shell-graduate-programme.html", provider: "official", sponsorQuery: "Shell International Limited" },
+  { company: "Deutsche Bank", country: "英国", careersUrl: "https://careers.db.com/students-graduates/", provider: "official", sponsorQuery: "Deutsche Bank AG" },
+  { company: "Zurich Insurance", country: "英国", careersUrl: "https://www.zurich.co.uk/careers/graduate-schemes", provider: "official", sponsorQuery: "Zurich Insurance Company Ltd" },
+  { company: "Baillie Gifford", country: "英国", careersUrl: "https://www.bailliegifford.com/en/uk/individual-investors/careers/early-careers/graduate-programmes/", provider: "official", sponsorQuery: "Baillie Gifford & Co" },
 
   { company: "StackAdapt", country: "加拿大", careersUrl: "https://www.stackadapt.com/careers", provider: "greenhouse", token: "stackadapt" },
   { company: "Hootsuite", country: "加拿大", careersUrl: "https://careers.hootsuite.com/", provider: "greenhouse", token: "hootsuite" },
@@ -161,6 +168,9 @@ export const jobSources: JobSource[] = [
   { company: "Visa Canada", country: "加拿大", careersUrl: "https://corporate.visa.com/en/careers.html", provider: "official" },
   { company: "Mastercard Canada", country: "加拿大", careersUrl: "https://careers.mastercard.com/", provider: "official" },
   { company: "1Password", country: "加拿大", careersUrl: "https://1password.com/jobs/", provider: "ashby", token: "1password" },
+  { company: "Deloitte Canada", country: "加拿大", careersUrl: "https://careers.deloitte.ca/", provider: "official" },
+  { company: "Rogers Communications", country: "加拿大", careersUrl: "https://jobs.rogers.com/", provider: "official" },
+  { company: "Trafigura Canada", country: "加拿大", careersUrl: "https://trafigura.wd3.myworkdayjobs.com/TrafiguraCareerSite", provider: "official" },
 ];
 
 export const liveSourceCount = jobSources.filter((source) => source.provider !== "official").length;
