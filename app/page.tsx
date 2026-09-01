@@ -1,13 +1,23 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { jobSources } from "../lib/job-sources";
 
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
 type DashboardView = "radar" | "saved" | "applications";
 type MatchDimension = { label: string; score: number; max: number };
-type SourceCompany = { company: string; country: Country; careersUrl: string; live: boolean; provider: string };
+type SourceCompany = { company: string; country: Country; careersUrl: string; group?: string; live: boolean; provider: string };
+
+const bundledSourceCompanies: SourceCompany[] = jobSources.map((source) => ({
+  company: source.displayName ?? source.company,
+  country: source.country,
+  careersUrl: source.careersUrl,
+  group: source.group ?? (source.country === "中国" ? "热门互联网" : `${source.country}企业`),
+  live: source.provider !== "official",
+  provider: source.provider === "official" ? "官方招聘入口" : `${source.provider[0].toUpperCase()}${source.provider.slice(1)} 官方职位流`,
+}));
 
 type Job = {
   id: string;
@@ -615,12 +625,17 @@ export default function Home() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [radarLoading, setRadarLoading] = useState(false);
   const [radarError, setRadarError] = useState("");
-  const [targetCompanyCount, setTargetCompanyCount] = useState(38);
+  const [targetCompanyCount, setTargetCompanyCount] = useState(bundledSourceCompanies.length);
   const [liveSourceCount, setLiveSourceCount] = useState(12);
   const [discoverySourceCount, setDiscoverySourceCount] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [filteredOutCount, setFilteredOutCount] = useState(0);
-  const [sourceCompanies, setSourceCompanies] = useState<SourceCompany[]>([]);
+  const [sourceCompanies, setSourceCompanies] = useState<SourceCompany[]>(bundledSourceCompanies);
+  const sourceGroups = useMemo(() => sourceCompanies.reduce<Record<string, SourceCompany[]>>((groups, source) => {
+    const group = source.group ?? (source.country === "中国" ? "热门互联网" : `${source.country}企业`);
+    (groups[group] ??= []).push(source);
+    return groups;
+  }, {}), [sourceCompanies]);
   const recommendedRoles = useMemo(() => recommendRoles(resumeText || resumeSkills.join(" ")).slice(0, 6), [resumeText, resumeSkills]);
   const orderedRoleCatalog = useMemo(() => [...roleCatalog].sort((a, b) => {
     const aRank = recommendedRoles.indexOf(a.label);
@@ -771,10 +786,12 @@ export default function Home() {
         const match = personalisedMatch(base, selectedRoles, resumeSkills, resumeText, preferredLocations);
         return { ...base, match: match.score, reason: match.reason, matchBreakdown: match.breakdown, missingSignals: match.missingSignals };
       }));
-      setTargetCompanyCount(jobsData.targetCompanies);
+      const selectedBundledSources = bundledSourceCompanies.filter((source) => countries.includes(source.country));
+      const apiOnlyCompanyCount = Math.max(0, jobsData.targetCompanies - (jobsData.sources?.length ?? 0));
+      setTargetCompanyCount(selectedBundledSources.length + apiOnlyCompanyCount);
       setLiveSourceCount(jobsData.liveSources);
       setDiscoverySourceCount(jobsData.discoverySources ?? 0);
-      setSourceCompanies(jobsData.sources ?? []);
+      setSourceCompanies(selectedBundledSources);
       setLastSyncedAt(jobsData.syncedAt ?? "");
     } catch {
       setRadarError("真实岗位源暂时无法同步，请稍后重新扫描。");
@@ -1530,13 +1547,20 @@ export default function Home() {
             <span className="eyebrow">SOURCE COVERAGE</span>
             <h2>当前监控 {sourceCompanies.length} 家公司</h2>
             <p>绿色标记为自动读取的官方职位流；其余公司已纳入目标池并提供官方招聘入口，不会把官网入口伪装成实时岗位。</p>
-            <div className="source-company-grid">
-              {sourceCompanies.map((source) => (
-                <a href={source.careersUrl} target="_blank" rel="noreferrer" key={`${source.country}-${source.company}`}>
-                  <strong>{source.company}</strong>
-                  <small>{countryMeta[source.country].flag} {source.country} · {source.provider}</small>
-                  <span className={source.live ? "live" : "watch"}>{source.live ? "LIVE" : "WATCH"}</span>
-                </a>
+            <div className="source-groups">
+              {Object.entries(sourceGroups).map(([group, sources]) => (
+                <section className="source-group" key={group}>
+                  <h3>{group}<span>{sources.length} 家</span></h3>
+                  <div className="source-company-grid">
+                    {sources.map((source) => (
+                      <a href={source.careersUrl} target="_blank" rel="noreferrer" key={`${source.country}-${source.company}`}>
+                        <strong>{source.company}</strong>
+                        <small>{countryMeta[source.country].flag} {source.country} · {source.provider}</small>
+                        <span className={source.live ? "live" : "watch"}>{source.live ? "LIVE" : "WATCH"}</span>
+                      </a>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </section>

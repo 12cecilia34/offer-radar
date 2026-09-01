@@ -192,7 +192,7 @@ async function fetchAshby(source: JobSource, fetchedAt: string): Promise<FeedJob
     .filter((job) => targetLocation([job.location, ...(job.secondaryLocations ?? []).map((location) => location.location)].filter(Boolean).join(" · "), source.country))
     .map((job) => ({
       id: `ashby:${source.token}:${job.id}`,
-      company: source.company,
+      company: source.displayName ?? source.company,
       role: job.title,
       country: source.country,
       city: job.location || source.country,
@@ -299,6 +299,7 @@ export async function GET(request: Request) {
       company: source.company,
       country: source.country,
       careersUrl: source.careersUrl,
+      group: source.group ?? (source.country === "中国" ? "热门互联网" : `${source.country}企业`),
       live: source.provider !== "official",
       provider: source.provider === "official" ? "官方招聘入口" : `${source.provider[0].toUpperCase()}${source.provider.slice(1)} 官方职位流`,
     })),

@@ -331,7 +331,11 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .modal input:focus, .modal select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(30, 106, 76, .08); }
 .source-modal { width: min(900px, 100%); max-height: min(760px, 88vh); display: flex; flex-direction: column; }
 .source-modal > p { margin-top: 5px; }
-.source-company-grid { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding: 2px; }
+.source-groups { min-height: 0; overflow-y: auto; display: grid; gap: 18px; padding: 2px; }
+.source-group { display: grid; gap: 8px; }
+.source-group h3 { margin: 0; color: var(--ink); font-size: 12px; }
+.source-group h3 span { margin-left: 7px; color: var(--muted); font-size: 9px; font-weight: 600; }
+.source-company-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
 .source-company-grid a { position: relative; min-width: 0; display: grid; gap: 5px; padding: 12px 55px 12px 12px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); text-decoration: none; }
 .source-company-grid a:hover { border-color: #9eb7a4; background: #f4f8f1; }
 .source-company-grid strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
