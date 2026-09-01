@@ -6,11 +6,30 @@ import { graduatePrograms, type GraduateProgram } from "../lib/graduate-programs
 import { jobSources } from "../lib/job-sources";
 
 type Country = "中国" | "英国" | "加拿大";
-type Status = "待申请" | "准备中" | "已申请";
+type Status = "待申请" | "准备中" | "已投递" | "测评" | "一面" | "二面" | "OC";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
 type DashboardView = "radar" | "saved" | "applications";
 type MatchDimension = { label: string; score: number; max: number };
 type SourceCompany = { company: string; country: Country; careersUrl: string; group?: string; live: boolean; provider: string };
+
+const statusOptions: Status[] = ["待申请", "准备中", "已投递", "测评", "一面", "二面", "OC"];
+const applicationStages = [
+  { status: "已投递", label: "已投递", note: "完成申请" },
+  { status: "测评", label: "测评", note: "进入笔试 / OA" },
+  { status: "一面", label: "一面", note: "完成首轮面试" },
+  { status: "二面", label: "二面", note: "进入后续面试" },
+  { status: "OC", label: "OC", note: "收到 Offer Call" },
+] as const;
+type ApplicationStage = typeof applicationStages[number]["status"];
+
+function normalizeStatus(value: unknown): Status {
+  if (value === "已申请") return "已投递";
+  return statusOptions.includes(value as Status) ? value as Status : "待申请";
+}
+
+function applicationStageIndex(status: Status) {
+  return applicationStages.findIndex((stage) => stage.status === status);
+}
 
 const bundledSourceCompanies: SourceCompany[] = jobSources.map((source) => ({
   company: source.displayName ?? source.company,
@@ -223,7 +242,7 @@ const seededJobs: Job[] = [
     reason: "产品运营主线清晰，语言与跨市场经历是加分项",
     requirements: "Support product operations across international markets. Use customer insights, data analysis, experimentation and cross-functional collaboration to improve operational processes and product adoption.",
     sponsorQuery: "Wise Payments Limited",
-    status: "已申请",
+    status: "已投递",
   },
   {
     id: "seed-6",
@@ -537,7 +556,11 @@ function apiUrl(path: string) {
 
 function readJobStates(): Record<string, StoredJobState> {
   try {
-    return JSON.parse(window.localStorage.getItem(jobStatesStorageKey) ?? "{}") as Record<string, StoredJobState>;
+    const parsed = JSON.parse(window.localStorage.getItem(jobStatesStorageKey) ?? "{}") as Record<string, { saved?: unknown; status?: unknown }>;
+    return Object.fromEntries(Object.entries(parsed).map(([jobId, state]) => [jobId, {
+      saved: Boolean(state.saved),
+      status: normalizeStatus(state.status),
+    }]));
   } catch {
     return {};
   }
@@ -897,7 +920,7 @@ export default function Home() {
           requirements: job.description,
           reason: "",
           sponsorQuery: job.sponsorQuery ?? undefined,
-          status: nextStates[job.id]?.status ?? "待申请" as Status,
+          status: normalizeStatus(nextStates[job.id]?.status),
           fresh: job.postedAt ? Date.now() - Date.parse(job.postedAt) < 7 * 24 * 60 * 60 * 1000 : false,
           match: 0,
         };
@@ -1214,7 +1237,19 @@ export default function Home() {
     }
   }
 
-  const applicationCount = jobs.filter((job) => job.status !== "待申请").length;
+  const applicationStats = useMemo(() => {
+    const counts = Object.fromEntries(applicationStages.map((stage) => [stage.status, 0])) as Record<ApplicationStage, number>;
+    jobs.forEach((job) => {
+      const currentStage = applicationStageIndex(job.status);
+      if (currentStage < 0) return;
+      applicationStages.slice(0, currentStage + 1).forEach((stage) => {
+        counts[stage.status] += 1;
+      });
+    });
+    return counts;
+  }, [jobs]);
+  const applicationCount = applicationStats["已投递"];
+  const preparingCount = jobs.filter((job) => job.status === "准备中").length;
 
   return (
     <main className="app-shell">
@@ -1621,6 +1656,36 @@ export default function Home() {
               <button className="secondary-button" onClick={() => setShowAdd(true)}>＋ 手动添加</button>
             </div>
 
+            {activeView === "applications" && (
+              <section className="application-progress" aria-labelledby="application-progress-title">
+                <div className="application-progress-head">
+                  <div>
+                    <span className="eyebrow">APPLICATION FUNNEL</span>
+                    <h3 id="application-progress-title">投递进度追踪</h3>
+                    <p>按岗位当前阶段累计统计；进入下一轮后，已完成的前序阶段仍会保留在漏斗中。</p>
+                  </div>
+                  <div className="application-progress-total">
+                    <strong>{applicationCount}</strong><span>个已投递岗位</span><small>{preparingCount} 个准备中</small>
+                  </div>
+                </div>
+                <div className="application-funnel">
+                  {applicationStages.map((stage) => {
+                    const count = applicationStats[stage.status];
+                    const progress = applicationCount ? Math.round((count / applicationCount) * 100) : 0;
+                    return (
+                      <article key={stage.status} className={stage.status === "OC" ? "offer-stage" : ""}>
+                        <span>{stage.label}</span>
+                        <strong>{count}</strong>
+                        <small>{stage.note}</small>
+                        <i aria-hidden="true"><b style={{ width: `${progress}%` }} /></i>
+                        <em>{applicationCount ? `${progress}%` : "—"}</em>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             <div className="filters">
               <div className="country-tabs" role="tablist" aria-label="按国家筛选">
                 {(["全部", ...selectedCountries] as const).map((item) => (
@@ -1740,8 +1805,8 @@ export default function Home() {
                     <p className="company-line">{job.company} <span>·</span> {countryMeta[job.country].flag} {job.city}</p>
                     <div className="job-tags">
                       <span>{job.track}</span>
-                      <select value={job.status} onChange={(event) => changeStatus(job.id, event.target.value as Status)} aria-label={`${job.company} 申请状态`}>
-                        <option>待申请</option><option>准备中</option><option>已申请</option>
+                      <select value={job.status} onChange={(event) => changeStatus(job.id, event.target.value as Status)} aria-label={`${job.company} 投递进度`} title="更新投递进度">
+                        {statusOptions.map((status) => <option key={status}>{status}</option>)}
                       </select>
                       <span>{job.source}</span>
                     </div>
@@ -1792,7 +1857,7 @@ export default function Home() {
                 );
               })}
               {filteredJobs.length === 0 && (
-                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏。" : activeView === "applications" ? "回到岗位雷达，把岗位状态改为“准备中”或“已申请”后会出现在这里。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
+                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏；收藏后可直接更新投递进度。" : activeView === "applications" ? "回到岗位雷达或收藏看板，把岗位状态改为“准备中”“已投递”或后续阶段。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
               )}
             </div>
 

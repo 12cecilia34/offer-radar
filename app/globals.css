@@ -268,6 +268,27 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .live-note span { color: var(--green); font-weight: 900; letter-spacing: .12em; margin-right: 7px; }
 .live-note.error span { color: #a5503c; }
 
+.application-progress { margin: 0 26px 18px; border: 1px solid #cdd5cd; border-radius: 11px; overflow: hidden; background: #f8f9f4; }
+.application-progress-head { padding: 17px 19px 14px; display: flex; align-items: center; justify-content: space-between; gap: 24px; background: linear-gradient(120deg, #e5eee5 0%, #f8f8ef 72%); }
+.application-progress-head h3 { margin: 5px 0 5px; font: 500 20px/1.2 Georgia, "Songti SC", serif; }
+.application-progress-head p { max-width: 650px; margin: 0; color: #6b766f; font-size: 9px; line-height: 1.5; }
+.application-progress-total { flex: 0 0 auto; display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: end; }
+.application-progress-total strong { grid-row: 1 / 3; color: var(--green); font: 600 34px/1 Georgia, serif; }
+.application-progress-total span { color: #506058; font-size: 8px; font-weight: 800; }
+.application-progress-total small { color: #87908b; font-size: 8px; }
+.application-funnel { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #d8ddd7; }
+.application-funnel article { position: relative; min-width: 0; padding: 14px 15px 13px; border-right: 1px solid #dfe3de; }
+.application-funnel article:last-child { border-right: 0; }
+.application-funnel article > span { display: block; color: #5f6b65; font-size: 9px; font-weight: 800; }
+.application-funnel article > strong { display: block; margin: 5px 0 4px; color: var(--ink); font: 600 25px/1 Georgia, serif; }
+.application-funnel article > small { display: block; min-height: 22px; color: #89928d; font-size: 7px; line-height: 1.4; }
+.application-funnel article > i { display: block; height: 4px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: #e1e5df; }
+.application-funnel article > i > b { display: block; height: 100%; border-radius: inherit; background: #5c9973; }
+.application-funnel article > em { display: block; margin-top: 5px; color: #8b948f; font-size: 7px; font-style: normal; text-align: right; }
+.application-funnel article.offer-stage { background: #f1f5df; }
+.application-funnel article.offer-stage > span, .application-funnel article.offer-stage > strong { color: #4c6e20; }
+.application-funnel article.offer-stage > i > b { background: #91b52d; }
+
 .graduate-watch { margin: 0 26px 18px; border: 1px solid #cdd8cb; border-radius: 10px; overflow: hidden; background: #f8faf5; }
 .graduate-watch-head { display: flex; align-items: center; justify-content: space-between; gap: 25px; padding: 18px 20px 14px; background: linear-gradient(120deg, #e5eee0 0%, #f7f8ef 72%); }
 .graduate-watch-head h3 { margin: 5px 0 6px; font: 500 19px Georgia, "Songti SC", serif; }
@@ -519,6 +540,12 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .search-box { flex: 1; }
   .search-box input { width: 100%; }
   .live-note { margin-left: 15px; margin-right: 15px; }
+  .application-progress { margin-left: 15px; margin-right: 15px; }
+  .application-progress-head { align-items: flex-start; flex-direction: column; gap: 12px; padding: 16px; }
+  .application-progress-head h3 { font-size: 18px; }
+  .application-progress-total { min-width: 0; }
+  .application-funnel { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
+  .application-funnel article { flex: 0 0 145px; scroll-snap-align: start; }
   .graduate-watch { margin-left: 15px; margin-right: 15px; }
   .graduate-watch-head { align-items: flex-start; flex-direction: column; gap: 12px; padding: 16px; }
   .graduate-watch-head h3 { font-size: 17px; }
