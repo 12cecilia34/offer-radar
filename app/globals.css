@@ -276,7 +276,7 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .application-progress-total strong { grid-row: 1 / 3; color: var(--green); font: 600 34px/1 Georgia, serif; }
 .application-progress-total span { color: #506058; font-size: 8px; font-weight: 800; }
 .application-progress-total small { color: #87908b; font-size: 8px; }
-.application-funnel { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #d8ddd7; }
+.application-funnel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #d8ddd7; }
 .application-funnel article { position: relative; min-width: 0; padding: 14px 15px 13px; border-right: 1px solid #dfe3de; }
 .application-funnel article:last-child { border-right: 0; }
 .application-funnel article > span { display: block; color: #5f6b65; font-size: 9px; font-weight: 800; }
@@ -288,6 +288,11 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .application-funnel article.offer-stage { background: #f1f5df; }
 .application-funnel article.offer-stage > span, .application-funnel article.offer-stage > strong { color: #4c6e20; }
 .application-funnel article.offer-stage > i > b { background: #91b52d; }
+.application-interview-rounds { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 15px; border-top: 1px solid #dfe3de; background: #f3f5ef; }
+.application-interview-rounds > b { color: #516159; font-size: 8px; margin-right: 3px; }
+.application-interview-rounds > span { padding: 5px 7px; border-radius: 999px; background: #fff; border: 1px solid #d4dad3; color: #69746e; font-size: 8px; }
+.application-interview-rounds > span strong { color: var(--green); margin-left: 3px; }
+.application-interview-rounds > small { margin-left: auto; color: #8a938e; font-size: 7px; }
 
 .graduate-watch { margin: 0 26px 18px; border: 1px solid #cdd8cb; border-radius: 10px; overflow: hidden; background: #f8faf5; }
 .graduate-watch-head { display: flex; align-items: center; justify-content: space-between; gap: 25px; padding: 18px 20px 14px; background: linear-gradient(120deg, #e5eee0 0%, #f7f8ef 72%); }
@@ -302,7 +307,7 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .graduate-watch-toolbar button.selected { border-color: var(--green); color: var(--green); background: #e5eee5; font-weight: 800; }
 .graduate-watch-toolbar > span { margin-left: auto; color: #858e89; font-size: 8px; }
 .graduate-program-track { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(270px, 31%); gap: 10px; padding: 14px 20px 17px; overflow-x: auto; scroll-snap-type: x proximity; }
-.graduate-program-card { min-height: 255px; display: flex; flex-direction: column; padding: 14px; border: 1px solid #dce1d9; border-radius: 8px; background: #fff; scroll-snap-align: start; }
+.graduate-program-card { min-height: 305px; display: flex; flex-direction: column; padding: 14px; border: 1px solid #dce1d9; border-radius: 8px; background: #fff; scroll-snap-align: start; }
 .graduate-program-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .graduate-program-status span { padding: 4px 7px; border-radius: 4px; font-size: 7px; font-weight: 900; letter-spacing: .04em; }
 .graduate-program-status span.open { color: #216440; background: #def1e4; }
@@ -317,6 +322,15 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .graduate-program-evidence, .graduate-program-auth { margin: 10px 0 0; color: #6b7670; font-size: 8px; line-height: 1.45; }
 .graduate-program-auth { margin-top: 6px; }
 .graduate-program-evidence b, .graduate-program-auth b { color: #365744; margin-right: 6px; }
+.graduate-application-control { display: flex; align-items: end; gap: 6px; margin-top: 11px; padding-top: 9px; border-top: 1px solid #e6e9e3; }
+.graduate-application-control > label:first-child { flex: 1; min-width: 0; }
+.graduate-application-control > label:first-child > span { display: block; margin-bottom: 4px; color: #63716a; font-size: 7px; font-weight: 800; }
+.graduate-application-control select { width: 100%; border: 1px solid #cfd7ce; border-radius: 5px; background: #e7f0e7; color: var(--green-dark); padding: 6px 8px; outline: 0; font-size: 8px; font-weight: 800; }
+.interview-round-control { display: inline-flex; align-items: center; gap: 3px; min-height: 28px; padding: 3px 6px; border: 1px solid #d4d9d3; border-radius: 5px; background: #f5f4ee; color: #68736d; font-size: 8px; white-space: nowrap; }
+.interview-round-control input { width: 32px; border: 0; border-bottom: 1px solid #abb5ae; outline: 0; background: transparent; color: var(--green-dark); font-size: 9px; font-weight: 900; text-align: center; }
+.job-tags .interview-round-control.compact { min-height: 23px; padding-top: 0; padding-bottom: 0; }
+.job-tags .interview-round-control.compact span { padding: 0; background: transparent; color: #68736d; }
+.graduate-program-empty { min-width: 300px; padding: 35px 25px; color: #78837d; font-size: 10px; text-align: center; border: 1px dashed #cfd7ce; border-radius: 8px; background: #fff; }
 .graduate-program-card > a { margin-top: auto; padding-top: 12px; color: var(--green); font-size: 9px; font-weight: 800; text-decoration: none; }
 
 .job-list { border-top: 1px solid var(--line); }
@@ -546,6 +560,9 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .application-progress-total { min-width: 0; }
   .application-funnel { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
   .application-funnel article { flex: 0 0 145px; scroll-snap-align: start; }
+  .application-interview-rounds { flex-wrap: nowrap; overflow-x: auto; }
+  .application-interview-rounds > b, .application-interview-rounds > span, .application-interview-rounds > small { flex: 0 0 auto; }
+  .application-interview-rounds > small { margin-left: 0; }
   .graduate-watch { margin-left: 15px; margin-right: 15px; }
   .graduate-watch-head { align-items: flex-start; flex-direction: column; gap: 12px; padding: 16px; }
   .graduate-watch-head h3 { font-size: 17px; }
@@ -554,6 +571,8 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .graduate-watch-toolbar button { white-space: nowrap; }
   .graduate-watch-toolbar > span { white-space: nowrap; }
   .graduate-program-track { grid-auto-columns: minmax(255px, 84vw); padding-left: 15px; padding-right: 15px; }
+  .graduate-application-control { align-items: stretch; flex-direction: column; }
+  .graduate-application-control .interview-round-control { align-self: flex-start; }
   .job-card { padding: 18px 15px; grid-template-columns: 37px minmax(0,1fr); gap: 11px; }
   .company-logo { width: 36px; height: 36px; }
   .job-meta { grid-column: 1 / 3; grid-template-columns: 1fr 70px 1fr; }

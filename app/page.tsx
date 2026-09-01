@@ -6,25 +6,32 @@ import { graduatePrograms, type GraduateProgram } from "../lib/graduate-programs
 import { jobSources } from "../lib/job-sources";
 
 type Country = "中国" | "英国" | "加拿大";
-type Status = "待申请" | "准备中" | "已投递" | "测评" | "一面" | "二面" | "OC";
+type Status = "待申请" | "准备中" | "已投递" | "测评" | "面试" | "OC";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
 type DashboardView = "radar" | "saved" | "applications";
 type MatchDimension = { label: string; score: number; max: number };
 type SourceCompany = { company: string; country: Country; careersUrl: string; group?: string; live: boolean; provider: string };
 
-const statusOptions: Status[] = ["待申请", "准备中", "已投递", "测评", "一面", "二面", "OC"];
+const statusOptions: Status[] = ["待申请", "准备中", "已投递", "测评", "面试", "OC"];
 const applicationStages = [
   { status: "已投递", label: "已投递", note: "完成申请" },
   { status: "测评", label: "测评", note: "进入笔试 / OA" },
-  { status: "一面", label: "一面", note: "完成首轮面试" },
-  { status: "二面", label: "二面", note: "进入后续面试" },
+  { status: "面试", label: "面试", note: "轮次由用户记录" },
   { status: "OC", label: "OC", note: "收到 Offer Call" },
 ] as const;
 type ApplicationStage = typeof applicationStages[number]["status"];
 
 function normalizeStatus(value: unknown): Status {
   if (value === "已申请") return "已投递";
+  if (value === "一面" || value === "二面") return "面试";
   return statusOptions.includes(value as Status) ? value as Status : "待申请";
+}
+
+function normalizeInterviewRound(value: unknown, legacyStatus?: unknown) {
+  if (legacyStatus === "一面") return 1;
+  if (legacyStatus === "二面") return 2;
+  const round = Number(value);
+  return Number.isFinite(round) && round >= 1 ? Math.min(99, Math.round(round)) : undefined;
 }
 
 function applicationStageIndex(status: Status) {
@@ -105,6 +112,7 @@ type Job = {
   requirements: string;
   sponsorQuery?: string;
   status: Status;
+  interviewRound?: number;
   fresh?: boolean;
   matchBreakdown?: MatchDimension[];
   missingSignals?: string[];
@@ -546,7 +554,7 @@ const profileStorageKey = "offer-radar-profile";
 const jobStatesStorageKey = "offer-radar-job-states";
 const defaultApiBaseUrl = "https://offer-radar-api.uceijk2.workers.dev";
 
-type StoredJobState = { saved: boolean; status: Status };
+type StoredJobState = { saved: boolean; status: Status; interviewRound?: number };
 
 function apiUrl(path: string) {
   const configured = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -556,10 +564,11 @@ function apiUrl(path: string) {
 
 function readJobStates(): Record<string, StoredJobState> {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(jobStatesStorageKey) ?? "{}") as Record<string, { saved?: unknown; status?: unknown }>;
+    const parsed = JSON.parse(window.localStorage.getItem(jobStatesStorageKey) ?? "{}") as Record<string, { saved?: unknown; status?: unknown; interviewRound?: unknown }>;
     return Object.fromEntries(Object.entries(parsed).map(([jobId, state]) => [jobId, {
       saved: Boolean(state.saved),
       status: normalizeStatus(state.status),
+      interviewRound: normalizeInterviewRound(state.interviewRound, state.status),
     }]));
   } catch {
     return {};
@@ -572,6 +581,7 @@ function saveJobState(jobId: string, patch: Partial<StoredJobState>) {
     states[jobId] = {
       saved: states[jobId]?.saved ?? false,
       status: states[jobId]?.status ?? "待申请",
+      interviewRound: states[jobId]?.interviewRound,
       ...patch,
     };
     window.localStorage.setItem(jobStatesStorageKey, JSON.stringify(states));
@@ -693,6 +703,15 @@ export default function Home() {
   const [sort, setSort] = useState<"match" | "deadline">("match");
   const [graduateOnly, setGraduateOnly] = useState(false);
   const [graduateCountry, setGraduateCountry] = useState<"全部" | "英国" | "加拿大">("全部");
+  const [graduateProgramStates, setGraduateProgramStates] = useState<Record<string, StoredJobState>>(() => {
+    if (typeof window === "undefined") return {};
+    const storedStates = readJobStates();
+    return Object.fromEntries(
+      graduatePrograms
+        .filter((program) => storedStates[program.id])
+        .map((program) => [program.id, storedStates[program.id]]),
+    );
+  });
   const [saved, setSaved] = useState<string[]>([]);
   const [clientId, setClientId] = useState("");
   const [activeView, setActiveView] = useState<DashboardView>("radar");
@@ -876,16 +895,23 @@ export default function Home() {
         return aDeadline - bDeadline || b.match - a.match;
       });
   }, [activeView, country, graduateOnly, jobs, query, saved, sort]);
-  const visibleGraduatePrograms = useMemo(() => graduatePrograms
-    .filter((program) => graduateCountry === "全部" || program.country === graduateCountry)
-    .sort((a, b) => {
+  const visibleGraduatePrograms = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return graduatePrograms
+      .filter((program) => graduateCountry === "全部" || program.country === graduateCountry)
+      .filter((program) => [program.company, program.title, program.location, program.fit, program.cycle]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized))
+      .sort((a, b) => {
       const aTiming = graduateProgramTiming(a);
       const bTiming = graduateProgramTiming(b);
       if (aTiming.rank !== bTiming.rank) return aTiming.rank - bTiming.rank;
       const aDate = a.deadline ?? a.opensOn ?? "9999-12-31";
       const bDate = b.deadline ?? b.opensOn ?? "9999-12-31";
       return aDate.localeCompare(bDate);
-    }), [graduateCountry]);
+      });
+  }, [graduateCountry, query]);
   const graduateOpenCount = useMemo(() => visibleGraduatePrograms.filter((program) => {
     const timing = graduateProgramTiming(program);
     return timing.tone === "open" || timing.tone === "urgent";
@@ -921,6 +947,7 @@ export default function Home() {
           reason: "",
           sponsorQuery: job.sponsorQuery ?? undefined,
           status: normalizeStatus(nextStates[job.id]?.status),
+          interviewRound: nextStates[job.id]?.interviewRound,
           fresh: job.postedAt ? Date.now() - Date.parse(job.postedAt) < 7 * 24 * 60 * 60 * 1000 : false,
           match: 0,
         };
@@ -974,8 +1001,32 @@ export default function Home() {
   }
 
   function changeStatus(id: string, status: Status) {
-    setJobs((current) => current.map((job) => job.id === id ? { ...job, status } : job));
-    saveJobState(id, { status });
+    const currentJob = jobs.find((job) => job.id === id);
+    const interviewRound = status === "面试" ? currentJob?.interviewRound ?? 1 : currentJob?.interviewRound;
+    setJobs((current) => current.map((job) => job.id === id ? { ...job, status, interviewRound } : job));
+    saveJobState(id, { status, interviewRound });
+  }
+
+  function changeInterviewRound(id: string, value: number) {
+    const interviewRound = normalizeInterviewRound(value) ?? 1;
+    setJobs((current) => current.map((job) => job.id === id ? { ...job, status: "面试", interviewRound } : job));
+    saveJobState(id, { status: "面试", interviewRound });
+  }
+
+  function changeGraduateProgramStatus(id: string, status: Status) {
+    const currentState = graduateProgramStates[id];
+    const interviewRound = status === "面试" ? currentState?.interviewRound ?? 1 : currentState?.interviewRound;
+    const nextState = { saved: currentState?.saved ?? false, status, interviewRound };
+    setGraduateProgramStates((current) => ({ ...current, [id]: nextState }));
+    saveJobState(id, nextState);
+  }
+
+  function changeGraduateInterviewRound(id: string, value: number) {
+    const interviewRound = normalizeInterviewRound(value) ?? 1;
+    const currentState = graduateProgramStates[id];
+    const nextState = { saved: currentState?.saved ?? false, status: "面试" as Status, interviewRound };
+    setGraduateProgramStates((current) => ({ ...current, [id]: nextState }));
+    saveJobState(id, nextState);
   }
 
   async function startScan() {
@@ -1176,6 +1227,7 @@ export default function Home() {
     setProfileReady(false);
     setEditingProfile(true);
     setJobs([]);
+    setGraduateProgramStates({});
     setSaved([]);
     setCountry("全部");
     setQuery("");
@@ -1237,19 +1289,33 @@ export default function Home() {
     }
   }
 
+  const trackedApplicationStates = useMemo(() => [
+    ...jobs.map((job) => ({ status: job.status, interviewRound: job.interviewRound })),
+    ...Object.values(graduateProgramStates).map((state) => ({ status: state.status, interviewRound: state.interviewRound })),
+  ], [graduateProgramStates, jobs]);
   const applicationStats = useMemo(() => {
     const counts = Object.fromEntries(applicationStages.map((stage) => [stage.status, 0])) as Record<ApplicationStage, number>;
-    jobs.forEach((job) => {
-      const currentStage = applicationStageIndex(job.status);
+    trackedApplicationStates.forEach((state) => {
+      const currentStage = applicationStageIndex(state.status);
       if (currentStage < 0) return;
       applicationStages.slice(0, currentStage + 1).forEach((stage) => {
         counts[stage.status] += 1;
       });
     });
     return counts;
-  }, [jobs]);
+  }, [trackedApplicationStates]);
+  const interviewRoundStats = useMemo(() => {
+    const highestRound = Math.max(0, ...trackedApplicationStates.map((state) => state.interviewRound ?? 0));
+    return Array.from({ length: highestRound }, (_, index) => ({
+      round: index + 1,
+      count: trackedApplicationStates.filter((state) =>
+        applicationStageIndex(state.status) >= applicationStageIndex("面试")
+        && (state.interviewRound ?? 0) >= index + 1).length,
+    }));
+  }, [trackedApplicationStates]);
   const applicationCount = applicationStats["已投递"];
-  const preparingCount = jobs.filter((job) => job.status === "准备中").length;
+  const preparingCount = trackedApplicationStates.filter((state) => state.status === "准备中").length;
+  const hasGraduateSearchResults = activeView === "radar" && Boolean(query.trim()) && visibleGraduatePrograms.length > 0;
 
   return (
     <main className="app-shell">
@@ -1683,6 +1749,13 @@ export default function Home() {
                     );
                   })}
                 </div>
+                {interviewRoundStats.length > 0 && (
+                  <div className="application-interview-rounds">
+                    <b>面试轮次</b>
+                    {interviewRoundStats.map((item) => <span key={item.round}>第 {item.round} 面 <strong>{item.count}</strong></span>)}
+                    <small>按用户记录的最高轮次累计</small>
+                  </div>
+                )}
               </section>
             )}
 
@@ -1730,11 +1803,12 @@ export default function Home() {
                   {(["全部", "英国", "加拿大"] as const).map((item) => (
                     <button key={item} className={graduateCountry === item ? "selected" : ""} onClick={() => setGraduateCountry(item)}>{item === "英国" ? `🇬🇧 英国 ${graduatePrograms.filter((program) => program.country === "英国").length}` : item === "加拿大" ? `🇨🇦 加拿大 ${graduatePrograms.filter((program) => program.country === "加拿大").length}` : `全部 ${graduatePrograms.length}`}</button>
                   ))}
-                  <span>{visibleGraduatePrograms.length} 个官方项目</span>
+                  <span>{query.trim() ? `搜索到 ${visibleGraduatePrograms.length} 个项目` : `${visibleGraduatePrograms.length} 个官方项目`}</span>
                 </div>
                 <div className="graduate-program-track">
                   {visibleGraduatePrograms.map((program) => {
                     const timing = graduateProgramTiming(program);
+                    const applicationState = graduateProgramStates[program.id] ?? { saved: false, status: "待申请" as Status };
                     return (
                       <article className="graduate-program-card" key={program.id}>
                         <div className="graduate-program-status"><span className={timing.tone}>{timing.label}</span><small>{timing.detail}</small></div>
@@ -1743,10 +1817,35 @@ export default function Home() {
                         <div className="graduate-program-tags"><span>{program.cycle}</span><span>{program.fit}</span></div>
                         <p className="graduate-program-evidence"><b>官方证据</b>{program.evidence}</p>
                         <p className="graduate-program-auth"><b>工作权利</b>{program.workAuthorization}</p>
+                        <div className="graduate-application-control">
+                          <label>
+                            <span>我的进度</span>
+                            <select value={applicationState.status} onChange={(event) => changeGraduateProgramStatus(program.id, event.target.value as Status)} aria-label={`${program.company} 投递进度`}>
+                              {statusOptions.map((status) => <option key={status}>{status}</option>)}
+                            </select>
+                          </label>
+                          {applicationState.status === "面试" && (
+                            <label className="interview-round-control">
+                              <span>第</span>
+                              <input
+                                key={`${program.id}-${applicationState.interviewRound ?? 1}`}
+                                type="number"
+                                min="1"
+                                max="99"
+                                defaultValue={applicationState.interviewRound ?? 1}
+                                onBlur={(event) => changeGraduateInterviewRound(program.id, Number(event.target.value))}
+                                onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+                                aria-label={`${program.company} 当前第几面`}
+                              />
+                              <span>面</span>
+                            </label>
+                          )}
+                        </div>
                         <a href={program.url} target="_blank" rel="noreferrer">打开官方项目页 ↗</a>
                       </article>
                     );
                   })}
+                  {visibleGraduatePrograms.length === 0 && <div className="graduate-program-empty">没有匹配的 Graduate Programme，请尝试公司英文名、项目名称或地点。</div>}
                 </div>
               </section>
             )}
@@ -1808,6 +1907,22 @@ export default function Home() {
                       <select value={job.status} onChange={(event) => changeStatus(job.id, event.target.value as Status)} aria-label={`${job.company} 投递进度`} title="更新投递进度">
                         {statusOptions.map((status) => <option key={status}>{status}</option>)}
                       </select>
+                      {job.status === "面试" && (
+                        <label className="interview-round-control compact">
+                          <span>第</span>
+                          <input
+                            key={`${job.id}-${job.interviewRound ?? 1}`}
+                            type="number"
+                            min="1"
+                            max="99"
+                            defaultValue={job.interviewRound ?? 1}
+                            onBlur={(event) => changeInterviewRound(job.id, Number(event.target.value))}
+                            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+                            aria-label={`${job.company} 当前第几面`}
+                          />
+                          <span>面</span>
+                        </label>
+                      )}
                       <span>{job.source}</span>
                     </div>
                     {job.sponsorQuery && (
@@ -1857,7 +1972,7 @@ export default function Home() {
                 );
               })}
               {filteredJobs.length === 0 && (
-                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏；收藏后可直接更新投递进度。" : activeView === "applications" ? "回到岗位雷达或收藏看板，把岗位状态改为“准备中”“已投递”或后续阶段。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
+                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : hasGraduateSearchResults ? "◎" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : hasGraduateSearchResults ? `Graduate Programme 找到 ${visibleGraduatePrograms.length} 个匹配项目` : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏；收藏后可直接更新投递进度。" : activeView === "applications" ? "回到岗位雷达或收藏看板，把岗位状态改为“准备中”“已投递”或后续阶段。" : hasGraduateSearchResults ? "匹配的官方项目已显示在上方 Graduate Programme Watch 中。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
               )}
             </div>
 
