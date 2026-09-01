@@ -1252,13 +1252,13 @@ export default function Home() {
               </button>
             )}
             <button className={`nav-item ${showSources ? "active" : ""}`} onClick={openSources}><span>◎</span>信息源</button>
-            <a href="#profile-builder" className="nav-upload" onClick={openProfileBuilder}><span>⇧</span><strong>上传简历找工作</strong><small>无需登录 · 每个人都能使用</small></a>
+            <a href="#profile-builder" className="nav-upload" onClick={openProfileBuilder}><span>⇧</span><strong>上传简历找工作</strong><small>无需登录</small></a>
           </nav>
 
           <div className="profile-card">
             <span className="eyebrow">求职画像</span>
             <strong>{profileReady ? "个人岗位雷达已建立" : "等待创建个人画像"}</strong>
-            <p>{selectedCountries.join(" · ")} · {selectedRoles.slice(0, 2).join(" / ")}</p>
+            <p>{profileReady ? `${selectedCountries.join(" · ")} · ${selectedRoles.slice(0, 2).join(" / ")}` : "上传简历后生成专属求职画像"}</p>
             <div className="profile-tags">{resumeSkills.slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
             {profileReady && <small className={`full-match-status ${resumeText ? "ready" : "limited"}`}>{resumeText ? "✓ 完整简历匹配已启用" : "! 当前仅使用技能标签"}</small>}
             <button onClick={openProfileBuilder}>{profileReady ? "编辑求职偏好 →" : "开始创建我的雷达 →"}</button>
