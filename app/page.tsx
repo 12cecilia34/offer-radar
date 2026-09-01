@@ -1,13 +1,13 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { companyMapMethod, rankCompanyMap, type DiscoveryPath, type EvidenceStrength } from "../lib/company-map";
+import { companyMapMethod, rankCompanyMap, type DiscoveryPath, type EvidenceStrength, type RankedCompanyMapEntry } from "../lib/company-map";
 import { jobSources } from "../lib/job-sources";
 
 type Country = "中国" | "英国" | "加拿大";
 type Status = "待申请" | "准备中" | "已申请";
 type CareerStage = "Graduate / Entry Level" | "Internship" | "Graduate + Internship";
-type DashboardView = "radar" | "map" | "saved" | "applications";
+type DashboardView = "radar" | "saved" | "applications";
 type MatchDimension = { label: string; score: number; max: number };
 type SourceCompany = { company: string; country: Country; careersUrl: string; group?: string; live: boolean; provider: string };
 
@@ -26,6 +26,48 @@ const evidenceTone: Record<EvidenceStrength, "strong" | "medium" | "weak" | "mis
   弱: "weak",
   未找到: "missing",
 };
+
+const standaloneCompanyMapEnabled = false;
+
+const companyInsightAliases: Record<string, string> = {
+  "TikTok Shop": "TikTok / ByteDance",
+  字节跳动: "TikTok / ByteDance",
+  阿里巴巴: "Alibaba",
+  美团: "Meituan",
+  腾讯: "Tencent",
+  京东: "JD.com",
+  拼多多: "PDD / Temu",
+  小红书: "Xiaohongshu",
+  快手: "Kuaishou",
+  哔哩哔哩: "Bilibili",
+  微博: "Weibo",
+  携程: "Trip.com Group",
+  滴滴: "DiDi",
+  小米: "Xiaomi",
+  淘宝闪购: "Taobao Flash",
+  盒马: "Hema",
+  飞猪: "Fliggy",
+  迅雷: "Xunlei",
+  叠纸: "Papergames",
+  米哈游: "miHoYo",
+  去哪儿: "Qunar",
+  宁德时代: "CATL",
+};
+
+function normalizeCompanyName(value: string) {
+  return value.toLowerCase().replace(/china|中国|集团|旅行|汽车|游戏|[^a-z0-9\u4e00-\u9fff]/g, "");
+}
+
+function findCompanyInsight(company: string, country: Country, entries: RankedCompanyMapEntry[]) {
+  if (country !== "中国") return undefined;
+  const normalizedCompany = normalizeCompanyName(company);
+  const alias = Object.entries(companyInsightAliases).find(([name]) => normalizedCompany.includes(normalizeCompanyName(name)))?.[1];
+  if (alias) return entries.find((entry) => entry.company === alias);
+  return entries.find((entry) => {
+    const names = [entry.company, entry.displayName].map(normalizeCompanyName);
+    return names.some((name) => name === normalizedCompany || (normalizedCompany.length >= 3 && (name.includes(normalizedCompany) || normalizedCompany.includes(name))));
+  });
+}
 
 type Job = {
   id: string;
@@ -723,7 +765,10 @@ export default function Home() {
   useEffect(() => {
     const syncViewFromHash = () => {
       const hash = window.location.hash.replace("#", "");
-      if (hash === "saved" || hash === "applications" || hash === "radar" || hash === "map") {
+      if (hash === "map") {
+        window.history.replaceState(null, "", "#radar");
+        setActiveView("radar");
+      } else if (hash === "saved" || hash === "applications" || hash === "radar") {
         setActiveView(hash);
       }
     };
@@ -846,7 +891,7 @@ export default function Home() {
     setActiveView(view);
     setShowSources(false);
     window.setTimeout(() => {
-      const panel = document.getElementById(view === "map" ? "company-map-panel" : "radar-panel");
+      const panel = document.getElementById("radar-panel");
       panel?.scrollIntoView({ behavior: "smooth", block: "start" });
       panel?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
     }, 0);
@@ -1144,7 +1189,6 @@ export default function Home() {
 
       <nav className="mobile-nav" aria-label="移动端主导航">
         <a href="#radar" className={activeView === "radar" && !showSources ? "active" : ""} onClick={() => openDashboardView("radar")}><span>⌁</span>岗位</a>
-        <a href="#map" className={activeView === "map" && !showSources ? "active" : ""} onClick={() => openDashboardView("map")}><span>⌘</span>地图</a>
         <a href="#saved" className={activeView === "saved" && !showSources ? "active" : ""} onClick={() => openDashboardView("saved")}><span>♡</span>收藏</a>
         <a href="#applications" className={activeView === "applications" && !showSources ? "active" : ""} onClick={() => openDashboardView("applications")}><span>▤</span>申请</a>
         <a href="#profile-builder" onClick={openProfileBuilder}><span>⇧</span>简历</a>
@@ -1155,7 +1199,6 @@ export default function Home() {
         <aside className="sidebar" aria-label="主导航">
           <nav>
             <a href="#radar" className={`nav-item ${activeView === "radar" && !showSources ? "active" : ""}`} aria-current={activeView === "radar" && !showSources ? "page" : undefined} onClick={() => openDashboardView("radar")}><span>⌁</span>岗位雷达</a>
-            <a href="#map" className={`nav-item ${activeView === "map" && !showSources ? "active" : ""}`} aria-current={activeView === "map" && !showSources ? "page" : undefined} onClick={() => openDashboardView("map")}><span>⌘</span>公司地图</a>
             <a href="#saved" className={`nav-item ${activeView === "saved" && !showSources ? "active" : ""}`} aria-current={activeView === "saved" && !showSources ? "page" : undefined} onClick={() => openDashboardView("saved")}>
               <span>♡</span>我的收藏 <b>{saved.length}</b>
             </a>
@@ -1402,7 +1445,7 @@ export default function Home() {
           </section>
           )}
 
-          {activeView === "map" ? (
+          {standaloneCompanyMapEnabled && (
           <section className="company-map-panel" id="company-map-panel">
             <div className="company-map-heading">
               <div>
@@ -1525,7 +1568,7 @@ export default function Home() {
               </div>
             </details>
           </section>
-          ) : (
+          )}
           <section className="radar-panel" id="radar-panel">
             <div className="panel-heading">
               <div>
@@ -1605,7 +1648,9 @@ export default function Home() {
             )}
 
             <div className="job-list">
-              {filteredJobs.map((job) => (
+              {filteredJobs.map((job) => {
+                const companyInsight = findCompanyInsight(job.company, job.country, rankedCompanyMap);
+                return (
                 <article className="job-card" key={job.id}>
                   <div className="company-logo" aria-hidden="true">{job.company.slice(0, 1)}</div>
                   <div className="job-main">
@@ -1639,6 +1684,17 @@ export default function Home() {
                         {job.matchBreakdown.map((dimension) => <span key={dimension.label}>{dimension.label} <b>{dimension.score}/{dimension.max}</b></span>)}
                       </div>
                     )}
+                    {companyInsight && (
+                      <div className="job-company-insight">
+                        <div>
+                          <b>公司发现</b>
+                          <span>{companyInsight.anchor}</span><i>→</i><strong>{companyInsight.path}</strong>
+                          <em className={`evidence-badge ${evidenceTone[companyInsight.evidence.strength]}`}>{companyInsight.evidence.strength === "未找到" ? "校招待核验" : `${companyInsight.evidence.strength}证据`}</em>
+                        </div>
+                        <p>{companyInsight.relationship}</p>
+                        <a href={companyInsight.evidence.url} target="_blank" rel="noreferrer">{companyInsight.evidence.year ? `${companyInsight.evidence.year} · ` : ""}{companyInsight.evidence.label} ↗</a>
+                      </div>
+                    )}
                   </div>
                   <div className="job-meta">
                     <div className={`deadline ${deadlineTone(job.daysLeft)}`}>
@@ -1654,13 +1710,64 @@ export default function Home() {
                     </div>
                   </div>
                 </article>
-              ))}
+                );
+              })}
               {filteredJobs.length === 0 && (
                 <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏。" : activeView === "applications" ? "回到岗位雷达，把岗位状态改为“准备中”或“已申请”后会出现在这里。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
               )}
             </div>
+
+            {activeView === "radar" && (
+              <details className="embedded-company-pool">
+                <summary>
+                  <div><span className="eyebrow">COMPANY DISCOVERY</span><strong>没有合适岗位时，继续拓展 {rankedCompanyMap.length} 家目标公司</strong></div>
+                  <small>{companyMapEvidenceCounts.强} 家强证据 · {companyMapEvidenceCounts.中} 家中等证据 · 展开查看公司与官方入口</small>
+                </summary>
+                <div className="embedded-company-body">
+                  <p className="embedded-company-intro">上面的岗位卡已经带入公司发现路径和校招证据。这里保留尚未抓到具体岗位、但与你画像相关的公司候选；榜单只用于发现，投递前仍回到官方页面核验。</p>
+                  <div className="map-evidence-summary" aria-label="公司候选证据强度统计">
+                    <span><b>{rankedCompanyMap.length}</b> 家候选公司</span>
+                    <span className="strong"><b>{companyMapEvidenceCounts.强}</b> 强证据</span>
+                    <span className="medium"><b>{companyMapEvidenceCounts.中}</b> 中等证据</span>
+                    <span className="missing"><b>{companyMapEvidenceCounts.未找到}</b> 待继续核验</span>
+                  </div>
+                  <div className="map-filters">
+                    <div className="map-path-tabs">
+                      {(["全部", "种子锚点", "投资组合", "竞品拓展", "产业链拓展"] as const).map((path) => (
+                        <button key={`embedded-${path}`} className={mapPath === path ? "selected" : ""} onClick={() => setMapPath(path)}>{path}</button>
+                      ))}
+                    </div>
+                    <label className="search-box"><span>⌕</span><input value={mapQuery} onChange={(event) => setMapQuery(event.target.value)} placeholder="搜索候选公司、赛道或岗位" /></label>
+                  </div>
+                  <div className="map-longlist-wrap">
+                    <table className="map-longlist">
+                      <thead><tr><th>候选公司 / 赛道</th><th>为什么出现</th><th>城市</th><th>校招证据</th><th>建议岗位</th><th>动作</th></tr></thead>
+                      <tbody>
+                        {visibleCompanyMap.map((entry) => (
+                          <tr key={`embedded-long-${entry.id}`}>
+                            <td><strong>{entry.displayName}</strong><small>{entry.industry}</small></td>
+                            <td><span>{entry.path}</span><small>{entry.anchor}</small></td>
+                            <td>{entry.cities.slice(0, 2).join(" / ")}</td>
+                            <td><a href={entry.evidence.url} target="_blank" rel="noreferrer" className={`evidence-link ${evidenceTone[entry.evidence.strength]}`}>{entry.evidence.strength}{entry.evidence.year ? ` · ${entry.evidence.year}` : ""} ↗</a></td>
+                            <td>{entry.recommendedRoles.slice(0, 2).join(" / ")}</td>
+                            <td><a href={entry.careersUrl} target="_blank" rel="noreferrer">官方招聘页 ↗</a></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {visibleCompanyMap.length === 0 && <div className="map-empty"><span>⌕</span><h3>当前筛选没有匹配公司</h3><p>尝试清空搜索词或切换发现路径。</p></div>}
+                  <details className="map-search-playbook">
+                    <summary>检索来源与证据标准</summary>
+                    <div>
+                      <ul>{companyMapMethod.searchTerms.map((term) => <li key={`embedded-${term}`}>{term}</li>)}</ul>
+                      <p><b>强：</b>带日期/年份的官方招聘页或官方职位；<b>中：</b>当前官方职位页或可验证公开页面；<b>未找到：</b>只确认招聘入口，不能据此断言有校招。</p>
+                    </div>
+                  </details>
+                </div>
+              </details>
+            )}
           </section>
-          )}
 
           <section className="source-strip">
             <div><span className="source-icon">⌁</span><p><strong>{targetCompanyCount} 家目标公司正在关注</strong><small>官方职位接口 · 企业招聘官网 · 校招公告 · 公众号线索</small></p></div>
