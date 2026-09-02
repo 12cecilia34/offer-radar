@@ -38,6 +38,11 @@ function applicationStageIndex(status: Status) {
   return applicationStages.findIndex((stage) => stage.status === status);
 }
 
+function hasReachedApplicationStage(status: Status, stage: ApplicationStage) {
+  const statusIndex = applicationStageIndex(status);
+  return statusIndex >= applicationStageIndex(stage) && statusIndex >= 0;
+}
+
 const bundledSourceCompanies: SourceCompany[] = jobSources.map((source) => ({
   company: source.displayName ?? source.company,
   country: source.country,
@@ -715,6 +720,7 @@ export default function Home() {
   const [saved, setSaved] = useState<string[]>([]);
   const [clientId, setClientId] = useState("");
   const [activeView, setActiveView] = useState<DashboardView>("radar");
+  const [applicationStageFilter, setApplicationStageFilter] = useState<ApplicationStage | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -881,7 +887,9 @@ export default function Home() {
       .filter((job) => country === "全部" || job.country === country)
       .filter((job) => !graduateOnly || graduateSignalPattern.test(job.role))
       .filter((job) => activeView !== "saved" || saved.includes(job.id))
-      .filter((job) => activeView !== "applications" || job.status !== "待申请")
+      .filter((job) => activeView !== "applications" || (applicationStageFilter
+        ? hasReachedApplicationStage(job.status, applicationStageFilter)
+        : job.status !== "待申请"))
       .filter((job) =>
         [job.company, job.role, job.track, job.city]
           .join(" ")
@@ -894,7 +902,7 @@ export default function Home() {
         const bDeadline = b.daysLeft >= 0 && b.daysLeft < 9999 ? b.daysLeft : Number.MAX_SAFE_INTEGER;
         return aDeadline - bDeadline || b.match - a.match;
       });
-  }, [activeView, country, graduateOnly, jobs, query, saved, sort]);
+  }, [activeView, applicationStageFilter, country, graduateOnly, jobs, query, saved, sort]);
   const visibleGraduatePrograms = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return graduatePrograms
@@ -912,6 +920,28 @@ export default function Home() {
       return aDate.localeCompare(bDate);
       });
   }, [graduateCountry, query]);
+  const visibleApplicationGraduatePrograms = useMemo(() => {
+    if (activeView !== "applications") return [];
+    const normalized = query.trim().toLowerCase();
+    return graduatePrograms
+      .filter((program) => country === "全部" || program.country === country)
+      .filter((program) => {
+        const state = graduateProgramStates[program.id];
+        if (!state || state.status === "待申请") return false;
+        return applicationStageFilter
+          ? hasReachedApplicationStage(state.status, applicationStageFilter)
+          : true;
+      })
+      .filter((program) => [program.company, program.title, program.location, program.fit, program.cycle]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized))
+      .sort((a, b) => {
+        const aStage = applicationStageIndex(graduateProgramStates[a.id]?.status ?? "待申请");
+        const bStage = applicationStageIndex(graduateProgramStates[b.id]?.status ?? "待申请");
+        return bStage - aStage || a.company.localeCompare(b.company);
+      });
+  }, [activeView, applicationStageFilter, country, graduateProgramStates, query]);
   const graduateOpenCount = useMemo(() => visibleGraduatePrograms.filter((program) => {
     const timing = graduateProgramTiming(program);
     return timing.tone === "open" || timing.tone === "urgent";
@@ -982,12 +1012,19 @@ export default function Home() {
       return;
     }
     setActiveView(view);
+    if (view !== "applications") setApplicationStageFilter(null);
     setShowSources(false);
     window.setTimeout(() => {
       const panel = document.getElementById("radar-panel");
       panel?.scrollIntoView({ behavior: "smooth", block: "start" });
       panel?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
     }, 0);
+  }
+
+  function toggleApplicationStageFilter(stage: ApplicationStage) {
+    setApplicationStageFilter((current) => current === stage ? null : stage);
+    setQuery("");
+    setGraduateOnly(false);
   }
 
   function openProfileBuilder() {
@@ -1243,6 +1280,7 @@ export default function Home() {
     setSourceCompanies([]);
     setLastSyncedAt("");
     setActiveView("radar");
+    setApplicationStageFilter(null);
     setScanMessage("简历和本次匹配结果已清除。重新上传简历后即可生成新的岗位雷达。");
   }
 
@@ -1738,16 +1776,32 @@ export default function Home() {
                   {applicationStages.map((stage) => {
                     const count = applicationStats[stage.status];
                     const progress = applicationCount ? Math.round((count / applicationCount) * 100) : 0;
+                    const selected = applicationStageFilter === stage.status;
                     return (
-                      <article key={stage.status} className={stage.status === "OC" ? "offer-stage" : ""}>
+                      <button
+                        key={stage.status}
+                        type="button"
+                        className={`application-stage-card ${stage.status === "OC" ? "offer-stage" : ""} ${selected ? "selected" : ""}`}
+                        onClick={() => toggleApplicationStageFilter(stage.status)}
+                        aria-pressed={selected}
+                        aria-label={`查看已到达${stage.label}阶段的 ${count} 个申请`}
+                      >
                         <span>{stage.label}</span>
                         <strong>{count}</strong>
                         <small>{stage.note}</small>
                         <i aria-hidden="true"><b style={{ width: `${progress}%` }} /></i>
                         <em>{applicationCount ? `${progress}%` : "—"}</em>
-                      </article>
+                      </button>
                     );
                   })}
+                </div>
+                <div className="application-stage-selection" aria-live="polite">
+                  <span>
+                    {applicationStageFilter
+                      ? `正在查看已到达“${applicationStageFilter}”阶段的 ${filteredJobs.length + visibleApplicationGraduatePrograms.length} 个申请`
+                      : `当前显示全部 ${filteredJobs.length + visibleApplicationGraduatePrograms.length} 个进行中申请`}
+                  </span>
+                  {applicationStageFilter && <button type="button" onClick={() => setApplicationStageFilter(null)}>清除阶段筛选 ×</button>}
                 </div>
                 {interviewRoundStats.length > 0 && (
                   <div className="application-interview-rounds">
@@ -1788,6 +1842,55 @@ export default function Home() {
               <span>{radarLoading ? "SYNC" : radarError ? "RETRY" : "LIVE"}</span>
               {radarLoading ? "正在从公司官网、官方职位接口和校招渠道读取并去重岗位…" : radarError || `${careerStage === "Internship" ? "Intern" : careerStage === "Graduate + Internship" ? "Graduate + Intern" : "Graduate"} 模式已过滤 ${filteredOutCount} 个职级或语言条件不符岗位；已识别 ${knownDeadlineCount}/${jobs.length} 个截止日期。`}
             </div>
+
+            {activeView === "applications" && visibleApplicationGraduatePrograms.length > 0 && (
+              <section className="application-graduate-results" aria-labelledby="application-graduate-title">
+                <header>
+                  <div><span className="eyebrow">GRADUATE PROGRAMMES</span><h3 id="application-graduate-title">Graduate Programme 申请</h3></div>
+                  <small>{visibleApplicationGraduatePrograms.length} 个项目</small>
+                </header>
+                <div className="application-graduate-grid">
+                  {visibleApplicationGraduatePrograms.map((program) => {
+                    const timing = graduateProgramTiming(program);
+                    const applicationState = graduateProgramStates[program.id] ?? { saved: false, status: "待申请" as Status };
+                    return (
+                      <article className="graduate-program-card" key={`application-${program.id}`}>
+                        <div className="graduate-program-status"><span className={timing.tone}>{applicationState.status}</span><small>{timing.label} · {timing.detail}</small></div>
+                        <h4>{program.title}</h4>
+                        <p className="graduate-program-company">{countryMeta[program.country].flag} {program.company} · {program.location}</p>
+                        <div className="graduate-program-tags"><span>{program.cycle}</span><span>{program.fit}</span></div>
+                        <p className="graduate-program-evidence"><b>官方证据</b>{program.evidence}</p>
+                        <div className="graduate-application-control">
+                          <label>
+                            <span>我的进度</span>
+                            <select value={applicationState.status} onChange={(event) => changeGraduateProgramStatus(program.id, event.target.value as Status)} aria-label={`${program.company} 投递进度`}>
+                              {statusOptions.map((status) => <option key={status}>{status}</option>)}
+                            </select>
+                          </label>
+                          {applicationState.status === "面试" && (
+                            <label className="interview-round-control">
+                              <span>第</span>
+                              <input
+                                key={`application-${program.id}-${applicationState.interviewRound ?? 1}`}
+                                type="number"
+                                min="1"
+                                max="99"
+                                defaultValue={applicationState.interviewRound ?? 1}
+                                onBlur={(event) => changeGraduateInterviewRound(program.id, Number(event.target.value))}
+                                onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+                                aria-label={`${program.company} 当前第几面`}
+                              />
+                              <span>面</span>
+                            </label>
+                          )}
+                        </div>
+                        <a href={program.url} target="_blank" rel="noreferrer">打开官方项目页 ↗</a>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {activeView === "radar" && (
               <section className="graduate-watch" aria-labelledby="graduate-watch-title">
@@ -1971,8 +2074,8 @@ export default function Home() {
                 </article>
                 );
               })}
-              {filteredJobs.length === 0 && (
-                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : hasGraduateSearchResults ? "◎" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? "申请看板还是空的" : hasGraduateSearchResults ? `Graduate Programme 找到 ${visibleGraduatePrograms.length} 个匹配项目` : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏；收藏后可直接更新投递进度。" : activeView === "applications" ? "回到岗位雷达或收藏看板，把岗位状态改为“准备中”“已投递”或后续阶段。" : hasGraduateSearchResults ? "匹配的官方项目已显示在上方 Graduate Programme Watch 中。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
+              {filteredJobs.length === 0 && visibleApplicationGraduatePrograms.length === 0 && (
+                <div className="empty-state"><span>{radarLoading ? "◌" : activeView === "saved" ? "♡" : activeView === "applications" ? "▤" : hasGraduateSearchResults ? "◎" : "⌕"}</span><h3>{radarLoading ? "正在建立你的岗位雷达" : activeView === "saved" ? "还没有收藏岗位" : activeView === "applications" ? applicationStageFilter ? `还没有到达“${applicationStageFilter}”阶段的申请` : "申请看板还是空的" : hasGraduateSearchResults ? `Graduate Programme 找到 ${visibleGraduatePrograms.length} 个匹配项目` : "当前筛选暂未返回结果"}</h3><p>{radarLoading ? "首次读取官网、职位接口和校招渠道可能需要一点时间。" : activeView === "saved" ? "回到岗位雷达，点击岗位右侧的爱心即可收藏；收藏后可直接更新投递进度。" : activeView === "applications" ? applicationStageFilter ? "点击上方同一阶段或“清除阶段筛选”返回全部进行中申请。" : "回到岗位雷达或收藏看板，把岗位状态改为“准备中”“已投递”或后续阶段。" : hasGraduateSearchResults ? "匹配的官方项目已显示在上方 Graduate Programme Watch 中。" : "请调整国家、搜索词，或点击“刷新个人雷达”重新读取岗位。"}</p></div>
               )}
             </div>
 

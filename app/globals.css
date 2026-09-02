@@ -277,17 +277,23 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .application-progress-total span { color: #506058; font-size: 8px; font-weight: 800; }
 .application-progress-total small { color: #87908b; font-size: 8px; }
 .application-funnel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #d8ddd7; }
-.application-funnel article { position: relative; min-width: 0; padding: 14px 15px 13px; border-right: 1px solid #dfe3de; }
-.application-funnel article:last-child { border-right: 0; }
-.application-funnel article > span { display: block; color: #5f6b65; font-size: 9px; font-weight: 800; }
-.application-funnel article > strong { display: block; margin: 5px 0 4px; color: var(--ink); font: 600 25px/1 Georgia, serif; }
-.application-funnel article > small { display: block; min-height: 22px; color: #89928d; font-size: 7px; line-height: 1.4; }
-.application-funnel article > i { display: block; height: 4px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: #e1e5df; }
-.application-funnel article > i > b { display: block; height: 100%; border-radius: inherit; background: #5c9973; }
-.application-funnel article > em { display: block; margin-top: 5px; color: #8b948f; font-size: 7px; font-style: normal; text-align: right; }
-.application-funnel article.offer-stage { background: #f1f5df; }
-.application-funnel article.offer-stage > span, .application-funnel article.offer-stage > strong { color: #4c6e20; }
-.application-funnel article.offer-stage > i > b { background: #91b52d; }
+.application-stage-card { appearance: none; position: relative; min-width: 0; padding: 14px 15px 13px; border: 0; border-right: 1px solid #dfe3de; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background .18s, box-shadow .18s; }
+.application-stage-card:last-child { border-right: 0; }
+.application-stage-card:hover { background: #eef4ed; }
+.application-stage-card:focus-visible { z-index: 1; outline: 2px solid var(--green); outline-offset: -3px; }
+.application-stage-card.selected { background: #e5efe4; box-shadow: inset 0 -3px var(--green); }
+.application-stage-card > span { display: block; color: #5f6b65; font-size: 9px; font-weight: 800; }
+.application-stage-card > strong { display: block; margin: 5px 0 4px; color: var(--ink); font: 600 25px/1 Georgia, serif; }
+.application-stage-card > small { display: block; min-height: 22px; color: #89928d; font-size: 7px; line-height: 1.4; }
+.application-stage-card > i { display: block; height: 4px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: #e1e5df; }
+.application-stage-card > i > b { display: block; height: 100%; border-radius: inherit; background: #5c9973; }
+.application-stage-card > em { display: block; margin-top: 5px; color: #8b948f; font-size: 7px; font-style: normal; text-align: right; }
+.application-stage-card.offer-stage { background: #f1f5df; }
+.application-stage-card.offer-stage:hover, .application-stage-card.offer-stage.selected { background: #e8efce; }
+.application-stage-card.offer-stage > span, .application-stage-card.offer-stage > strong { color: #4c6e20; }
+.application-stage-card.offer-stage > i > b { background: #91b52d; }
+.application-stage-selection { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 15px; border-top: 1px solid #dfe3de; background: #fbfcf8; color: #718078; font-size: 8px; }
+.application-stage-selection button { border: 0; background: transparent; color: var(--green); font-size: 8px; font-weight: 800; cursor: pointer; }
 .application-interview-rounds { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 15px; border-top: 1px solid #dfe3de; background: #f3f5ef; }
 .application-interview-rounds > b { color: #516159; font-size: 8px; margin-right: 3px; }
 .application-interview-rounds > span { padding: 5px 7px; border-radius: 999px; background: #fff; border: 1px solid #d4dad3; color: #69746e; font-size: 8px; }
@@ -332,6 +338,13 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .job-tags .interview-round-control.compact span { padding: 0; background: transparent; color: #68736d; }
 .graduate-program-empty { min-width: 300px; padding: 35px 25px; color: #78837d; font-size: 10px; text-align: center; border: 1px dashed #cfd7ce; border-radius: 8px; background: #fff; }
 .graduate-program-card > a { margin-top: auto; padding-top: 12px; color: var(--green); font-size: 9px; font-weight: 800; text-decoration: none; }
+
+.application-graduate-results { margin: 0 26px 18px; padding: 15px; border: 1px solid #d7ddd5; border-radius: 10px; background: #f7f9f4; }
+.application-graduate-results > header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 11px; }
+.application-graduate-results > header h3 { margin: 4px 0 0; font: 500 16px/1.2 Georgia, "Songti SC", serif; }
+.application-graduate-results > header small { color: #7b8680; font-size: 8px; }
+.application-graduate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.application-graduate-results .graduate-program-card { min-height: 260px; }
 
 .job-list { border-top: 1px solid var(--line); }
 .job-card { display: grid; grid-template-columns: 46px minmax(0, 1fr) 270px; gap: 17px; padding: 22px 26px; border-bottom: 1px solid var(--line); transition: background .2s; }
@@ -559,7 +572,8 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .application-progress-head h3 { font-size: 18px; }
   .application-progress-total { min-width: 0; }
   .application-funnel { display: flex; overflow-x: auto; scroll-snap-type: x proximity; }
-  .application-funnel article { flex: 0 0 145px; scroll-snap-align: start; }
+  .application-stage-card { flex: 0 0 145px; scroll-snap-align: start; }
+  .application-stage-selection { align-items: flex-start; flex-direction: column; }
   .application-interview-rounds { flex-wrap: nowrap; overflow-x: auto; }
   .application-interview-rounds > b, .application-interview-rounds > span, .application-interview-rounds > small { flex: 0 0 auto; }
   .application-interview-rounds > small { margin-left: 0; }
@@ -573,6 +587,8 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .graduate-program-track { grid-auto-columns: minmax(255px, 84vw); padding-left: 15px; padding-right: 15px; }
   .graduate-application-control { align-items: stretch; flex-direction: column; }
   .graduate-application-control .interview-round-control { align-self: flex-start; }
+  .application-graduate-results { margin-left: 15px; margin-right: 15px; padding: 12px; }
+  .application-graduate-grid { grid-template-columns: 1fr; }
   .job-card { padding: 18px 15px; grid-template-columns: 37px minmax(0,1fr); gap: 11px; }
   .company-logo { width: 36px; height: 36px; }
   .job-meta { grid-column: 1 / 3; grid-template-columns: 1fr 70px 1fr; }
