@@ -24,6 +24,7 @@ export const jobSources: JobSource[] = [
   { company: "Bilibili", displayName: "哔哩哔哩 Bilibili", country: "中国", careersUrl: "https://jobs.bilibili.com/", provider: "official" },
   { company: "Baidu", displayName: "百度 Baidu", country: "中国", careersUrl: "https://talent.baidu.com/", provider: "official" },
   { company: "Trip.com Group", displayName: "携程 Trip.com Group", country: "中国", careersUrl: "https://careers.trip.com/", provider: "official" },
+  { company: "SF Express", displayName: "顺丰 SF Express", country: "中国", careersUrl: "https://hr.sf-express.com/", provider: "official" },
   { company: "NetEase", displayName: "网易 NetEase", country: "中国", careersUrl: "https://campus.163.com/", provider: "official" },
   { company: "DiDi", displayName: "滴滴 DiDi", country: "中国", careersUrl: "https://talent.didiglobal.com/", provider: "official" },
   { company: "Xiaomi", displayName: "小米 Xiaomi", country: "中国", careersUrl: "https://hr.xiaomi.com/", provider: "official" },

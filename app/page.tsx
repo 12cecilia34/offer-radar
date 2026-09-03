@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { chinaCampusPriorities } from "../lib/china-campus-priorities";
 import { companyMapMethod, rankCompanyMap, type DiscoveryPath, type EvidenceStrength, type RankedCompanyMapEntry } from "../lib/company-map";
 import { graduatePrograms, type GraduateProgram } from "../lib/graduate-programs";
 import { jobSources } from "../lib/job-sources";
@@ -717,6 +718,15 @@ export default function Home() {
         .map((program) => [program.id, storedStates[program.id]]),
     );
   });
+  const [campusPlanStates, setCampusPlanStates] = useState<Record<string, StoredJobState>>(() => {
+    if (typeof window === "undefined") return {};
+    const storedStates = readJobStates();
+    return Object.fromEntries(
+      chinaCampusPriorities
+        .filter((item) => storedStates[item.id])
+        .map((item) => [item.id, storedStates[item.id]]),
+    );
+  });
   const [saved, setSaved] = useState<string[]>([]);
   const [clientId, setClientId] = useState("");
   const [activeView, setActiveView] = useState<DashboardView>("radar");
@@ -942,6 +952,27 @@ export default function Home() {
         return bStage - aStage || a.company.localeCompare(b.company);
       });
   }, [activeView, applicationStageFilter, country, graduateProgramStates, query]);
+  const visibleApplicationCampusPlans = useMemo(() => {
+    if (activeView !== "applications" || (country !== "全部" && country !== "中国")) return [];
+    const normalized = query.trim().toLowerCase();
+    return chinaCampusPriorities
+      .filter((item) => {
+        const state = campusPlanStates[item.id];
+        if (!state || state.status === "待申请") return false;
+        return applicationStageFilter
+          ? hasReachedApplicationStage(state.status, applicationStageFilter)
+          : true;
+      })
+      .filter((item) => [item.company, item.timing, item.action, ...item.roles]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalized))
+      .sort((a, b) => {
+        const aStage = applicationStageIndex(campusPlanStates[a.id]?.status ?? "待申请");
+        const bStage = applicationStageIndex(campusPlanStates[b.id]?.status ?? "待申请");
+        return bStage - aStage || a.rank - b.rank;
+      });
+  }, [activeView, applicationStageFilter, campusPlanStates, country, query]);
   const graduateOpenCount = useMemo(() => visibleGraduatePrograms.filter((program) => {
     const timing = graduateProgramTiming(program);
     return timing.tone === "open" || timing.tone === "urgent";
@@ -1063,6 +1094,21 @@ export default function Home() {
     const currentState = graduateProgramStates[id];
     const nextState = { saved: currentState?.saved ?? false, status: "面试" as Status, interviewRound };
     setGraduateProgramStates((current) => ({ ...current, [id]: nextState }));
+    saveJobState(id, nextState);
+  }
+
+  function changeCampusPlanStatus(id: string, status: Status) {
+    const currentState = campusPlanStates[id];
+    const interviewRound = status === "面试" ? currentState?.interviewRound ?? 1 : currentState?.interviewRound;
+    const nextState = { saved: false, status, interviewRound };
+    setCampusPlanStates((current) => ({ ...current, [id]: nextState }));
+    saveJobState(id, nextState);
+  }
+
+  function changeCampusInterviewRound(id: string, value: number) {
+    const interviewRound = normalizeInterviewRound(value) ?? 1;
+    const nextState = { saved: false, status: "面试" as Status, interviewRound };
+    setCampusPlanStates((current) => ({ ...current, [id]: nextState }));
     saveJobState(id, nextState);
   }
 
@@ -1265,6 +1311,7 @@ export default function Home() {
     setEditingProfile(true);
     setJobs([]);
     setGraduateProgramStates({});
+    setCampusPlanStates({});
     setSaved([]);
     setCountry("全部");
     setQuery("");
@@ -1330,7 +1377,8 @@ export default function Home() {
   const trackedApplicationStates = useMemo(() => [
     ...jobs.map((job) => ({ status: job.status, interviewRound: job.interviewRound })),
     ...Object.values(graduateProgramStates).map((state) => ({ status: state.status, interviewRound: state.interviewRound })),
-  ], [graduateProgramStates, jobs]);
+    ...Object.values(campusPlanStates).map((state) => ({ status: state.status, interviewRound: state.interviewRound })),
+  ], [campusPlanStates, graduateProgramStates, jobs]);
   const applicationStats = useMemo(() => {
     const counts = Object.fromEntries(applicationStages.map((stage) => [stage.status, 0])) as Record<ApplicationStage, number>;
     trackedApplicationStates.forEach((state) => {
@@ -1798,8 +1846,8 @@ export default function Home() {
                 <div className="application-stage-selection" aria-live="polite">
                   <span>
                     {applicationStageFilter
-                      ? `正在查看已到达“${applicationStageFilter}”阶段的 ${filteredJobs.length + visibleApplicationGraduatePrograms.length} 个申请`
-                      : `当前显示全部 ${filteredJobs.length + visibleApplicationGraduatePrograms.length} 个进行中申请`}
+                      ? `正在查看已到达“${applicationStageFilter}”阶段的 ${filteredJobs.length + visibleApplicationGraduatePrograms.length + visibleApplicationCampusPlans.length} 个申请`
+                      : `当前显示全部 ${filteredJobs.length + visibleApplicationGraduatePrograms.length + visibleApplicationCampusPlans.length} 个进行中申请`}
                   </span>
                   {applicationStageFilter && <button type="button" onClick={() => setApplicationStageFilter(null)}>清除阶段筛选 ×</button>}
                 </div>
@@ -1892,6 +1940,77 @@ export default function Home() {
               </section>
             )}
 
+            {activeView === "applications" && visibleApplicationCampusPlans.length > 0 && (
+              <section className="application-campus-results" aria-labelledby="application-campus-title">
+                <header>
+                  <div><span className="eyebrow">CHINA CAMPUS PLAN</span><h3 id="application-campus-title">国内秋招申请</h3></div>
+                  <small>{visibleApplicationCampusPlans.length} 家公司</small>
+                </header>
+                <div className="campus-priority-list compact">
+                  {visibleApplicationCampusPlans.map((item) => {
+                    const state = campusPlanStates[item.id] ?? { saved: false, status: "待申请" as Status };
+                    return (
+                      <article className={`campus-priority-row ${item.level}`} key={`application-${item.id}`}>
+                        <div className="campus-priority-rank"><span>#{item.rank}</span><b>{item.suggestedDate}</b></div>
+                        <div className="campus-priority-main"><h4>{item.company}</h4><p>{item.action}</p></div>
+                        <div className="campus-priority-status">
+                          <select value={state.status} onChange={(event) => changeCampusPlanStatus(item.id, event.target.value as Status)} aria-label={`${item.company} 投递进度`}>
+                            {statusOptions.map((status) => <option key={status}>{status}</option>)}
+                          </select>
+                          {state.status === "面试" && <label className="interview-round-control"><span>第</span><input type="number" min="1" max="99" defaultValue={state.interviewRound ?? 1} onBlur={(event) => changeCampusInterviewRound(item.id, Number(event.target.value))} /><span>面</span></label>}
+                        </div>
+                        <a href={item.careersUrl} target="_blank" rel="noreferrer">官方入口 ↗</a>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {activeView === "radar" && (
+              <section className="campus-priority" aria-labelledby="campus-priority-title">
+                <header className="campus-priority-head">
+                  <div>
+                    <span className="eyebrow">CHINA CAMPUS RECRUITMENT SPRINT</span>
+                    <h3 id="campus-priority-title">2027 届国内秋招投递顺序</h3>
+                    <p>按紧急程度和滚动招聘节奏安排，不把公司级时间线当作每个岗位的统一截止日。选定岗位后请在官方页面再次确认。</p>
+                  </div>
+                  <div className="campus-priority-summary"><strong>11</strong><span>家目标公司</span><small>计划更新于 2026/09/03</small></div>
+                </header>
+                <div className="campus-sprint-strip" aria-label="建议投递日期">
+                  <span><b>9/4</b> 阿里 · 腾讯</span>
+                  <span><b>9/5</b> 字节</span>
+                  <span><b>9/6</b> 小红书</span>
+                  <span><b>9/7</b> 科大讯飞</span>
+                  <span><b>9/8</b> 美团</span>
+                  <span><b>9/9</b> 快手</span>
+                  <span><b>9/10–15</b> 汇丰 · 携程 · 百度 · 顺丰</span>
+                </div>
+                <div className="campus-priority-list">
+                  {chinaCampusPriorities.map((item) => {
+                    const state = campusPlanStates[item.id] ?? { saved: false, status: "待申请" as Status };
+                    return (
+                      <article className={`campus-priority-row ${item.level}`} key={item.id}>
+                        <div className="campus-priority-rank"><span>#{item.rank}</span><b>{item.suggestedDate}</b></div>
+                        <div className="campus-priority-main">
+                          <div><h4>{item.company}</h4><span>{item.level === "urgent" ? "立即" : item.level === "high" ? "优先" : item.level === "normal" ? "本轮" : "关注"}</span></div>
+                          <p>{item.timing}</p>
+                          <small>{item.action}</small>
+                          <div className="campus-role-tags">{item.roles.map((role) => <span key={role}>{role}</span>)}</div>
+                        </div>
+                        <div className="campus-priority-status">
+                          <label><span>我的进度</span><select value={state.status} onChange={(event) => changeCampusPlanStatus(item.id, event.target.value as Status)} aria-label={`${item.company} 投递进度`}>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select></label>
+                          {state.status === "面试" && <label className="interview-round-control"><span>第</span><input type="number" min="1" max="99" defaultValue={state.interviewRound ?? 1} onBlur={(event) => changeCampusInterviewRound(item.id, Number(event.target.value))} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label={`${item.company} 当前第几面`} /><span>面</span></label>}
+                        </div>
+                        <a href={item.careersUrl} target="_blank" rel="noreferrer">官方招聘入口 ↗</a>
+                      </article>
+                    );
+                  })}
+                </div>
+                <footer className="campus-priority-note"><b>时间说明</b> 以上日期来自 2026-09-03 的个人投递计划与公开线索；不同事业群、岗位和批次可能不同，最终以官方职位页为准。</footer>
+              </section>
+            )}
+
             {activeView === "radar" && (
               <section className="graduate-watch" aria-labelledby="graduate-watch-title">
                 <header className="graduate-watch-head">
@@ -1900,7 +2019,7 @@ export default function Home() {
                     <h3 id="graduate-watch-title">UK / 加拿大 Graduate Program 高峰期追踪</h3>
                     <p>优先显示已开放、即将截止和本月即将开放的官方项目；过期日期会自动降级为“待重新核验”。</p>
                   </div>
-                  <div className="graduate-watch-summary"><strong>{graduateOpenCount}</strong><span>个开放或需立即核验</span><small>官网核验至 2026/09/01</small></div>
+                  <div className="graduate-watch-summary"><strong>{graduateOpenCount}</strong><span>个开放或需立即核验</span><small>官网核验至 2026/09/03</small></div>
                 </header>
                 <div className="graduate-watch-toolbar">
                   {(["全部", "英国", "加拿大"] as const).map((item) => (

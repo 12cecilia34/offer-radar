@@ -346,6 +346,52 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
 .application-graduate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .application-graduate-results .graduate-program-card { min-height: 260px; }
 
+.campus-priority { margin: 0 26px 18px; overflow: hidden; border: 1px solid #d8d0c3; border-radius: 11px; background: #fffdf8; }
+.campus-priority-head { display: flex; align-items: center; justify-content: space-between; gap: 25px; padding: 19px 20px 16px; background: linear-gradient(120deg, #fff2df 0%, #faf8ee 65%, #eef4e8 100%); }
+.campus-priority-head h3 { margin: 5px 0 6px; font: 500 20px/1.2 Georgia, "Songti SC", serif; }
+.campus-priority-head p { max-width: 700px; margin: 0; color: #716d65; font-size: 9px; line-height: 1.55; }
+.campus-priority-summary { flex: 0 0 auto; display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: end; }
+.campus-priority-summary strong { grid-row: 1 / 3; color: #ba4e32; font: 600 34px/1 Georgia, serif; }
+.campus-priority-summary span { color: #5b5c55; font-size: 8px; font-weight: 800; }
+.campus-priority-summary small { color: #8c8a83; font-size: 7px; }
+.campus-sprint-strip { display: flex; gap: 7px; padding: 10px 20px; overflow-x: auto; border-top: 1px solid rgba(118,92,56,.1); border-bottom: 1px solid rgba(118,92,56,.13); background: #fbfaf4; }
+.campus-sprint-strip span { flex: 0 0 auto; padding: 5px 8px; border: 1px solid #dfddd2; border-radius: 999px; color: #696a64; background: white; font-size: 8px; }
+.campus-sprint-strip b { color: #a94731; margin-right: 4px; }
+.campus-priority-list { display: grid; }
+.campus-priority-row { min-width: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr) 142px 92px; gap: 14px; align-items: center; padding: 14px 20px; border-bottom: 1px solid #ece9e0; box-shadow: inset 3px 0 #a9b2a8; }
+.campus-priority-row:last-child { border-bottom: 0; }
+.campus-priority-row.urgent { box-shadow: inset 3px 0 #d65f41; background: #fffaf7; }
+.campus-priority-row.high { box-shadow: inset 3px 0 #d6a03f; }
+.campus-priority-row.normal { box-shadow: inset 3px 0 #5a9471; }
+.campus-priority-rank { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 5px; padding-right: 12px; border-right: 1px solid #e6e1d8; }
+.campus-priority-rank span { color: #9d9a91; font: 500 10px Georgia, serif; }
+.campus-priority-rank b { color: #334b40; font-size: 9px; line-height: 1.35; }
+.campus-priority-main { min-width: 0; }
+.campus-priority-main > div:first-child { display: flex; align-items: center; gap: 7px; }
+.campus-priority-main h4 { margin: 0; font-size: 12px; }
+.campus-priority-main > div:first-child > span { padding: 3px 5px; border-radius: 4px; color: #a34832; background: #ffe6dd; font-size: 6px; font-weight: 900; }
+.campus-priority-row.high .campus-priority-main > div:first-child > span { color: #7d5a17; background: #f7eac9; }
+.campus-priority-row.normal .campus-priority-main > div:first-child > span { color: #286446; background: #e2f0e5; }
+.campus-priority-row.watch .campus-priority-main > div:first-child > span { color: #686c68; background: #ebece8; }
+.campus-priority-main p { margin: 5px 0 3px; color: #626c66; font-size: 9px; line-height: 1.45; }
+.campus-priority-main small { color: #858b86; font-size: 8px; line-height: 1.4; }
+.campus-role-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.campus-role-tags span { padding: 3px 5px; border-radius: 4px; color: #53645b; background: #edf1eb; font-size: 7px; }
+.campus-priority-status { display: flex; align-items: end; gap: 6px; }
+.campus-priority-status > label:first-child { flex: 1; min-width: 0; }
+.campus-priority-status > label:first-child > span { display: block; margin-bottom: 4px; color: #7a817c; font-size: 7px; font-weight: 800; }
+.campus-priority-status select { width: 100%; min-height: 30px; border: 1px solid #ccd4cd; border-radius: 5px; padding: 5px 7px; color: var(--green-dark); background: #e9f0e7; font-size: 8px; font-weight: 800; }
+.campus-priority-row > a { justify-self: end; color: var(--green); font-size: 8px; font-weight: 800; text-decoration: none; }
+.campus-priority-note { padding: 10px 20px; border-top: 1px solid #dedbd0; color: #85837d; background: #f6f4ed; font-size: 8px; line-height: 1.5; }
+.campus-priority-note b { color: #5e665f; margin-right: 5px; }
+.application-campus-results { margin: 0 26px 18px; padding: 15px; border: 1px solid #ddd8cd; border-radius: 10px; background: #fbfaf5; }
+.application-campus-results > header { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 11px; }
+.application-campus-results > header h3 { margin: 4px 0 0; font: 500 16px/1.2 Georgia, "Songti SC", serif; }
+.application-campus-results > header small { color: #7b8680; font-size: 8px; }
+.campus-priority-list.compact { overflow: hidden; border: 1px solid #e2ded5; border-radius: 8px; background: white; }
+.campus-priority-list.compact .campus-priority-row { grid-template-columns: 82px minmax(0, 1fr) 140px 80px; padding: 11px 13px; }
+.campus-priority-list.compact .campus-priority-main p { margin-bottom: 0; }
+
 .job-list { border-top: 1px solid var(--line); }
 .job-card { display: grid; grid-template-columns: 46px minmax(0, 1fr) 270px; gap: 17px; padding: 22px 26px; border-bottom: 1px solid var(--line); transition: background .2s; }
 .job-card:hover { background: #fff; }
@@ -589,6 +635,15 @@ a:focus-visible, button:focus-visible, label:focus-visible, input:focus-visible,
   .graduate-application-control .interview-round-control { align-self: flex-start; }
   .application-graduate-results { margin-left: 15px; margin-right: 15px; padding: 12px; }
   .application-graduate-grid { grid-template-columns: 1fr; }
+  .campus-priority { margin-left: 15px; margin-right: 15px; }
+  .campus-priority-head { align-items: flex-start; flex-direction: column; gap: 12px; padding: 16px; }
+  .campus-priority-summary { min-width: 0; }
+  .campus-sprint-strip { padding-left: 15px; padding-right: 15px; }
+  .campus-priority-row, .campus-priority-list.compact .campus-priority-row { grid-template-columns: 65px minmax(0, 1fr); gap: 10px; padding: 13px 15px; }
+  .campus-priority-rank { grid-row: 1 / 3; }
+  .campus-priority-status { grid-column: 2; }
+  .campus-priority-row > a { grid-column: 2; justify-self: start; }
+  .application-campus-results { margin-left: 15px; margin-right: 15px; padding: 12px; }
   .job-card { padding: 18px 15px; grid-template-columns: 37px minmax(0,1fr); gap: 11px; }
   .company-logo { width: 36px; height: 36px; }
   .job-meta { grid-column: 1 / 3; grid-template-columns: 1fr 70px 1fr; }
